@@ -1,0 +1,34 @@
+{
+  "ts-node": {
+    "esm": true
+  },
+  "compilerOptions": {
+    /* Output folders */
+    "rootDir": ".",
+    "outDir": "dist",
+
+    /* Node environment */
+    "target": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2020"],
+    "types": ["node"],
+
+    /* Interop / Imports */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+
+    /* Type safety */
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Source maps / declarations (optional but nice) */
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
