@@ -38,7 +38,6 @@ Place your icons and UI assets here. The AI will reference these assets when gen
 - `warrior.svg` - Warrior class icon
 - `mage.svg` - Mage class icon
 - `rogue.svg` - Rogue class icon
-- `cleric.svg` - Cleric class icon
 
 ### Environment
 - `tree.svg` - Tree icon

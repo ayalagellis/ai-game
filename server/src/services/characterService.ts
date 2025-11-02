@@ -1,14 +1,18 @@
 import { Pool } from 'pg';
-import { Character, CharacterStats, InventoryItem } from '../../shared/types';
+import { Character, CharacterStats, InventoryItem } from '../../../shared/types';
 import { logger } from '../utils/logger';
 
 export class CharacterService {
   private db: Pool;
 
   constructor() {
+    const connectionString = process.env['DATABASE_URL'];
+    if (!connectionString) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
     this.db = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      connectionString,
+      ssl: process.env['NODE_ENV'] === 'production' ? { rejectUnauthorized: false } : false
     });
   }
 
@@ -42,7 +46,11 @@ export class CharacterService {
       return character;
     } catch (error) {
       logger.error('Failed to create character:', error);
-      throw new Error('Character creation failed');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('connect')) {
+        throw new Error('Database connection failed. Please check your DATABASE_URL and ensure PostgreSQL is running.');
+      }
+      throw new Error(`Character creation failed: ${errorMessage}`);
     }
   }
 

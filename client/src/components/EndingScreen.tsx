@@ -1,12 +1,12 @@
 import { motion } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
-import { Trophy, Skull, Heart, QuestionMark, Star, Zap } from 'lucide-react';
+import { Trophy, Skull, Heart, HelpCircle, Star, Zap } from 'lucide-react';
 
 const ENDING_ICONS = {
   victory: Trophy,
   defeat: Skull,
-  neutral: QuestionMark,
-  mystery: QuestionMark,
+  neutral: HelpCircle,
+  mystery: HelpCircle,
   romance: Heart,
   tragedy: Zap
 };

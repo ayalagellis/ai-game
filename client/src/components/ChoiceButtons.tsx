@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { Choice, Character } from '@shared/types';
-import { useGameStore } from '../store/gameStore';
 
 interface ChoiceButtonsProps {
   choices: Choice[];
@@ -9,9 +8,7 @@ interface ChoiceButtonsProps {
   character: Character;
 }
 
-export function ChoiceButtons({ choices, onChoiceSelect, isLoading, character }: ChoiceButtonsProps) {
-  const { validateChoiceRequirements } = useGameStore();
-
+export function ChoiceButtons({ choices, onChoiceSelect, isLoading, character: _character }: ChoiceButtonsProps) {
   const handleChoiceClick = async (choice: Choice) => {
     if (isLoading) return;
 

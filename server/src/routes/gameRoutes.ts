@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { GameController } from '../controllers/GameController';
-import { validateGameStartRequest, validateNextSceneRequest } from '../../shared/schemas';
+import { validateGameStartRequest, validateNextSceneRequest } from '../../../shared/schemas';
 
 const router = Router();
 const gameController = new GameController();
@@ -8,10 +8,18 @@ const gameController = new GameController();
 // Start a new game with character creation
 router.post('/game/start', async (req, res, next) => {
   try {
+    console.log('Received game start request:', req.body);
     const validatedData = validateGameStartRequest(req.body);
+    console.log('Validated data:', validatedData);
     const result = await gameController.startGame(validatedData);
+    console.log('Game started successfully');
     res.json(result);
   } catch (error) {
+    console.error('Error in /game/start route:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     next(error);
   }
 });

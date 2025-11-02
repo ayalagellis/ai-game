@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import Particles from 'react-tsparticles';
-import { loadSlim } from 'tsparticles';
+import { loadSlim } from 'tsparticles-slim';
 import { Engine } from 'tsparticles-engine';
 import { useGameStore } from '../store/gameStore';
 
@@ -59,7 +59,7 @@ export function ParticleManager() {
           random: true,
           straight: false,
           outModes: {
-            default: 'out',
+            default: 'out' as const,
           },
         },
         life: {
@@ -144,7 +144,7 @@ export function ParticleManager() {
     }
   };
 
-  const getParticleDirection = (effectType: string) => {
+  const getParticleDirection = (effectType: string): 'top' | 'bottom' | 'none' => {
     switch (effectType) {
       case 'rain':
         return 'bottom';

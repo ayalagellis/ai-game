@@ -10,7 +10,7 @@ import {
   NextSceneRequest,
   WorldFlag,
   EndingType
-} from '../../shared/types';
+} from '../../../shared/types';
 import { logger } from '../utils/logger';
 
 export class GameService {
@@ -54,7 +54,7 @@ export class GameService {
       logger.info(`Processing choice ${choiceId} for character ${character.name}`);
       
       // Check if we've reached the maximum number of scenes
-      const maxScenes = parseInt(process.env.MAX_SCENES_PER_GAME || '20');
+      const maxScenes = parseInt(process.env['MAX_SCENES_PER_GAME'] || '20');
       if (currentScene.sceneNumber >= maxScenes) {
         return await this.generateEndingScene(character, 'neutral');
       }
@@ -121,8 +121,8 @@ export class GameService {
   buildDecisionTree(sceneHistory: Scene[]): any {
     try {
       const tree = {
-        nodes: [],
-        edges: []
+        nodes: [] as any[],
+        edges: [] as any[]
       };
 
       // Create nodes for each scene
@@ -174,6 +174,8 @@ export class GameService {
       for (let i = 0; i < sceneHistory.length - 1; i++) {
         const currentScene = sceneHistory[i];
         const nextScene = sceneHistory[i + 1];
+        
+        if (!currentScene || !nextScene) continue;
         
         // Find the choice that led to the next scene (simplified)
         const firstChoice = currentScene.choices[0];
@@ -271,7 +273,7 @@ export class GameService {
   ): Promise<{ characterUpdates: any; inventoryChanges: any; worldFlagUpdates: any }> {
     try {
       const characterUpdates: any = {};
-      const inventoryChanges = { gained: [], lost: [] };
+      const inventoryChanges = { gained: [] as any[], lost: [] as string[] };
       const worldFlagUpdates: any = {};
 
       if (!choice.consequences || choice.consequences.length === 0) {

@@ -3,7 +3,7 @@ import { Howl } from 'howler';
 import { useGameStore } from '../store/gameStore';
 
 export function AudioManager() {
-  const { gameState, audioEnabled, currentAudio } = useGameStore();
+  const { gameState, audioEnabled } = useGameStore();
   const audioRef = useRef<Howl | null>(null);
 
   useEffect(() => {
@@ -25,14 +25,16 @@ export function AudioManager() {
           src: [ambientAudio.path],
           volume: ambientAudio.volume || 0.5,
           loop: ambientAudio.loop || true,
-          fadeIn: ambientAudio.fadeIn || 1000,
-          fadeOut: ambientAudio.fadeOut || 1000,
           onloaderror: () => {
             console.warn('Failed to load audio:', ambientAudio.path);
           }
         });
 
-        audioRef.current.play();
+        const soundId = audioRef.current.play();
+        // Apply fade-in if specified
+        if (ambientAudio.fadeIn) {
+          audioRef.current.fade(0, ambientAudio.volume || 0.5, ambientAudio.fadeIn, soundId);
+        }
       } catch (error) {
         console.warn('Audio playback error:', error);
       }

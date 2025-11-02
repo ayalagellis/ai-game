@@ -24,10 +24,17 @@ export const errorHandler = (
     userAgent: req.get('User-Agent')
   });
 
-  // Send error response
+  // Send error response with more details in development
+  const isDevelopment = process.env['NODE_ENV'] !== 'production';
   res.status(statusCode).json({
     error: {
-      message: statusCode === 500 ? 'Internal Server Error' : message,
+      message: statusCode === 500 && !isDevelopment 
+        ? 'Internal Server Error' 
+        : message,
+      ...(isDevelopment && statusCode === 500 && { 
+        details: error.stack,
+        originalMessage: message
+      }),
       statusCode,
       timestamp: new Date().toISOString(),
       path: req.path

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
-import { X, Volume2, VolumeX, Sparkles, SparklesOff, Zap, ZapOff } from 'lucide-react';
+import { X, Volume2, VolumeX, Sparkles, Circle, Zap, ZapOff } from 'lucide-react';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -98,7 +98,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 {particlesEnabled ? (
                   <Sparkles className="w-5 h-5 text-blue-400 mr-3" />
                 ) : (
-                  <SparklesOff className="w-5 h-5 text-gray-400 mr-3" />
+                  <Circle className="w-5 h-5 text-gray-400 mr-3" />
                 )}
                 <span className="text-white">Particle Effects</span>
               </div>

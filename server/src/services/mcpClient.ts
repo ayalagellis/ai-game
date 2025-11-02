@@ -10,7 +10,7 @@ import {
   WorldMemory,
   CharacterStats,
   WorldFlag
-} from '../../shared/types';
+} from '../../../shared/types';
 import { logger } from '../utils/logger';
 
 export class MCPClient {
@@ -18,25 +18,20 @@ export class MCPClient {
   private isConnected: boolean = false;
 
   constructor() {
-    this.client = new Client(
-      {
-        name: 'dynamic-storylines-mcp-client',
-        version: '1.0.0'
-      },
-      {
-        capabilities: {
-          resources: {},
-          tools: {}
-        }
-      }
-    );
+    this.client = new Client({
+      name: 'dynamic-storylines-mcp-client',
+      version: '1.0.0'
+    });
   }
 
   async connect(): Promise<void> {
     if (this.isConnected) return;
 
     try {
-      const transport = new StdioClientTransport();
+      const transport = new StdioClientTransport({
+        command: 'node',
+        args: ['-e', 'console.log("MCP transport")']
+      });
       await this.client.connect(transport);
       this.isConnected = true;
       logger.info('MCP client connected successfully');
@@ -90,7 +85,7 @@ export class MCPClient {
         }
       });
 
-      if (result.content && result.content[0] && result.content[0].text) {
+      if (result.content && Array.isArray(result.content) && result.content[0] && result.content[0].text) {
         const gameState = JSON.parse(result.content[0].text);
         return gameState as MCPGameState;
       }
@@ -131,7 +126,7 @@ export class MCPClient {
         arguments: {}
       });
 
-      if (result.content && result.content[0] && result.content[0].text) {
+      if (result.content && Array.isArray(result.content) && result.content[0] && result.content[0].text) {
         const flags = JSON.parse(result.content[0].text);
         return flags as WorldFlag[];
       }
@@ -173,7 +168,7 @@ export class MCPClient {
         }
       });
 
-      if (result.content && result.content[0] && result.content[0].text) {
+      if (result.content && Array.isArray(result.content) && result.content[0] && result.content[0].text) {
         const memory = JSON.parse(result.content[0].text);
         return memory as CharacterMemory;
       }
@@ -215,7 +210,7 @@ export class MCPClient {
         }
       });
 
-      if (result.content && result.content[0] && result.content[0].text) {
+      if (result.content && Array.isArray(result.content) && result.content[0] && result.content[0].text) {
         const memory = JSON.parse(result.content[0].text);
         return memory as SceneMemory;
       }
@@ -255,7 +250,7 @@ export class MCPClient {
         arguments: {}
       });
 
-      if (result.content && result.content[0] && result.content[0].text) {
+      if (result.content && Array.isArray(result.content) && result.content[0] && result.content[0].text) {
         const memory = JSON.parse(result.content[0].text);
         return memory as WorldMemory;
       }

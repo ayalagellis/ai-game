@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { GameService } from '../services/gameService';
 import { CharacterService } from '../services/characterService';
 import { SceneService } from '../services/sceneService';
-import { GameStartRequest, NextSceneRequest, Character, GameState } from '../../shared/types';
+import { GameStartRequest, NextSceneRequest, Character, GameState } from '../../../shared/types';
 
 export class GameController {
   private gameService: GameService;
@@ -24,21 +24,43 @@ export class GameController {
         background: data.characterBackground
       });
 
-      // Generate initial scene
-      const initialScene = await this.gameService.generateInitialScene(character);
+      // Generate initial scene using AI
+      const aiResponse = await this.gameService.generateInitialScene(character);
+
+      // Convert AI response to Scene and save to database
+      const savedScene = await this.sceneService.createScene({
+        characterId: character.id,
+        sceneNumber: 1,
+        description: aiResponse.sceneText,
+        choices: aiResponse.choices,
+        metadata: aiResponse.visualMetadata,
+        isEnding: aiResponse.isEnding || false,
+        ...(aiResponse.endingType && { endingType: aiResponse.endingType })
+      });
+
+      // Update character if there are character updates from AI
+      if (aiResponse.characterUpdates) {
+        await this.characterService.updateCharacterStats(character.id, aiResponse.characterUpdates);
+      }
+
+      // Get updated character (in case stats were updated)
+      const updatedCharacter = await this.characterService.getCharacter(character.id);
+
+      // Get world flags
+      const worldFlags = await this.gameService.getWorldFlags();
 
       return {
-        character,
-        scene: initialScene,
+        character: updatedCharacter,
+        scene: savedScene,
         gameState: {
-          character,
-          currentScene: initialScene,
-          sceneHistory: [initialScene],
-          worldFlags: [],
+          character: updatedCharacter,
+          currentScene: savedScene,
+          sceneHistory: [savedScene],
+          worldFlags,
           gameProgress: {
             totalScenes: 1,
             currentSceneNumber: 1,
-            isGameOver: false
+            isGameOver: aiResponse.isEnding || false
           }
         }
       };
@@ -89,7 +111,7 @@ export class GameController {
         choices: nextScene.choices,
         metadata: nextScene.visualMetadata,
         isEnding: nextScene.isEnding,
-        endingType: nextScene.endingType
+        ...(nextScene.endingType && { endingType: nextScene.endingType })
       });
 
       // Get updated character

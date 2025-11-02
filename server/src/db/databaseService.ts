@@ -1,13 +1,13 @@
 import { Pool } from 'pg';
-import { logger } from './logger';
+import { logger } from '../utils/logger';
 
 export class DatabaseService {
   private db: Pool;
 
   constructor() {
     this.db = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      connectionString: process.env['DATABASE_URL'],
+      ssl: process.env['NODE_ENV'] === 'production' ? { rejectUnauthorized: false } : false
     });
   }
 

@@ -86,10 +86,16 @@ export const useGameStore = create<GameStore>()(
           });
           
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+            throw new Error(errorMessage);
           }
           
           const data = await response.json();
+          
+          if (!data.gameState) {
+            throw new Error('Invalid response format: missing gameState');
+          }
           
           set({
             gameState: data.gameState,
@@ -97,8 +103,13 @@ export const useGameStore = create<GameStore>()(
             currentView: 'game'
           });
         } catch (error) {
+          const errorMessage = error instanceof Error 
+            ? error.message 
+            : 'Failed to start game. Please ensure the server is running.';
+          
+          console.error('Start game error:', error);
           set({
-            error: error instanceof Error ? error.message : 'Failed to start game',
+            error: errorMessage,
             isLoading: false
           });
         }

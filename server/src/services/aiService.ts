@@ -10,19 +10,21 @@ import {
   CharacterStats,
   WorldFlag,
   EndingType
-} from '../../shared/types';
+} from '../../../shared/types';
 import { logger } from '../utils/logger';
 
 export class AIService {
   private openai: OpenAI;
   private mcpClient: MCPClient;
 
+  
   constructor() {
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+      apiKey: process.env['OPENAI_API_KEY']
     });
     this.mcpClient = new MCPClient();
   }
+
 
   async generateInitialScene(character: Character): Promise<AIResponse> {
     try {
@@ -42,7 +44,7 @@ export class AIService {
         max_tokens: 2000
       });
 
-      const aiResponse = this.parseAIResponse(response.choices[0].message.content || '');
+      const aiResponse = this.parseAIResponse(response.choices[0]?.message.content || '');
       
       // Save initial state via MCP
       await this.mcpClient.saveGameState(character, aiResponse);
@@ -76,7 +78,8 @@ export class AIService {
         max_tokens: 2000
       });
 
-      const aiResponse = this.parseAIResponse(response.choices[0].message.content || '');
+      const aiResponse = this.parseAIResponse(response.choices[0]?.message?.content || '');
+
       
       // Update character stats via MCP
       if (aiResponse.characterUpdates) {
@@ -286,7 +289,7 @@ Create meaningful choices that continue the narrative while allowing for charact
           visualAssets: [],
           audioAssets: [],
           particleEffects: [],
-          mood: "neutral",
+          mood: "peaceful",
           timeOfDay: "noon",
           weather: "clear"
         },
@@ -314,6 +317,6 @@ Create meaningful choices that continue the narrative while allowing for charact
       max_tokens: 1500
     });
 
-    return this.parseAIResponse(response.choices[0].message.content || '');
+    return this.parseAIResponse(response.choices[0]?.message?.content || '');
   }
 }
