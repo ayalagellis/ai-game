@@ -17,7 +17,7 @@ let envLoaded = false;
 for (const envPath of envPaths) {
   if (existsSync(envPath)) {
     const result = dotenv.config({ path: envPath });
-    if (!result.error && process.env['OPENAI_API_KEY']) {
+    if (!result.error && process.env['GOOGLE_API_KEY']) {
       console.log(`✓ Loaded environment variables from: ${envPath}`);
       envLoaded = true;
       break;
@@ -26,13 +26,13 @@ for (const envPath of envPaths) {
 }
 
 // Fallback: try default dotenv.config() which looks in current directory
-if (!envLoaded && !process.env['OPENAI_API_KEY']) {
+if (!envLoaded && !process.env['GOOGLE_API_KEY']) {
   dotenv.config();
-  if (process.env['OPENAI_API_KEY']) {
+  if (process.env['GOOGLE_API_KEY']) {
     console.log('✓ Loaded environment variables from default location');
   } else {
-    console.error('✗ WARNING: OPENAI_API_KEY not found in environment variables!');
-    console.error('Please ensure you have a .env file in the server directory with OPENAI_API_KEY set.');
+    console.error('✗ WARNING: GOOGLE_API_KEY not found in environment variables!');
+    console.error('Please ensure you have a .env file in the server directory with GOOGLE_API_KEY set.');
     process.exit(1);
   }
 }

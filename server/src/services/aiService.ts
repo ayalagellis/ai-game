@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MCPClient } from './mcpClient';
 import { 
   Character, 
@@ -14,14 +14,12 @@ import {
 import { logger } from '../utils/logger';
 
 export class AIService {
-  private openai: OpenAI;
+  private genAI: GoogleGenerativeAI;
   private mcpClient: MCPClient;
 
   
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env['OPENAI_API_KEY']
-    });
+    this.genAI = new GoogleGenerativeAI(process.env['GOOGLE_API_KEY'] || '');
     this.mcpClient = new MCPClient();
   }
 
@@ -30,25 +28,27 @@ export class AIService {
     try {
       // Load game state from MCP
       const gameState = await this.mcpClient.loadGameState(character.id);
-      
+      console.error("finished loading game state: ",gameState);
       const systemPrompt = this.buildSystemPrompt();
       const userPrompt = this.buildInitialScenePrompt(character);
 
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.8,
-        max_tokens: 2000
+      const model = this.genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: {
+          temperature: 0.8,
+        }
       });
 
-      const aiResponse = this.parseAIResponse(response.choices[0]?.message.content || '');
-      
+      const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+      const result = await model.generateContent(fullPrompt);
+      console.log("The ai model result:", result);
+      const responseText = result.response.text();
+      console.log("The ai response text:", responseText);
+      const aiResponse = this.parseAIResponse(responseText);
+      console.log("The ai response:", aiResponse);
       // Save initial state via MCP
       await this.mcpClient.saveGameState(character, aiResponse);
-      
+      console.log("The game state saved:", gameState);
       return aiResponse;
     } catch (error) {
       logger.error('Failed to generate initial scene:', error);
@@ -68,19 +68,19 @@ export class AIService {
       const systemPrompt = this.buildSystemPrompt();
       const userPrompt = this.buildNextScenePrompt(character, currentScene, choiceId, gameState);
 
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.8,
-        max_tokens: 2000
+      const model = this.genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: {
+          temperature: 0.8,
+        }
       });
-
-      const aiResponse = this.parseAIResponse(response.choices[0]?.message?.content || '');
-
       
+      const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+      const result = await model.generateContent(fullPrompt);
+      const responseText = result.response.text();
+
+      const aiResponse = this.parseAIResponse(responseText);
+
       // Update character stats via MCP
       if (aiResponse.characterUpdates) {
         await this.mcpClient.updateCharacterStats(character.id, aiResponse.characterUpdates);
@@ -306,17 +306,18 @@ Create meaningful choices that continue the narrative while allowing for charact
     Character Background: ${character.background}
     
     Create a satisfying conclusion that reflects their journey and choices. Set isEnding to true and endingType to "${endingType}".`;
-
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 1500
+  
+    const model = this.genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        temperature: 0.7,
+      }
     });
-
-    return this.parseAIResponse(response.choices[0]?.message?.content || '');
+  
+    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+    const result = await model.generateContent(fullPrompt);
+    const responseText = result.response.text();
+  
+    return this.parseAIResponse(responseText);
   }
 }

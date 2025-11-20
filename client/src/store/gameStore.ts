@@ -77,17 +77,24 @@ export const useGameStore = create<GameStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          // Ensure request is a plain object with correct property types
+          const sanitizedRequest = {
+            characterName: String(request.characterName),
+            characterClass: String(request.characterClass),
+            characterBackground: String(request.characterBackground)
+          };
+
           const response = await fetch('/api/game/start', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(request),
+            body: JSON.stringify(sanitizedRequest),
           });
           
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+            const errorMessage = errorData.error?.message || errorData.message || `HTTP error! status: ${response.status}`;
             throw new Error(errorMessage);
           }
           

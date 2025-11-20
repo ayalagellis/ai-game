@@ -17,6 +17,9 @@ export class GameController {
 
   async startGame(data: GameStartRequest) {
     try {
+      console.log('=== GameController.startGame called with:', data);
+      console.log('=== About to call createCharacter');
+
       // Create character
       const character = await this.characterService.createCharacter({
         name: data.characterName,

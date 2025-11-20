@@ -32,12 +32,13 @@ export class SceneService {
         RETURNING *
       `;
 
+      // For JSONB columns, pass objects directly - pg library handles conversion
       const values = [
         data.characterId,
         data.sceneNumber,
         data.description,
-        JSON.stringify(data.choices),
-        JSON.stringify(data.metadata),
+        data.choices,  // Pass object directly for JSONB
+        data.metadata,  // Pass object directly for JSONB
         data.isEnding,
         data.endingType || null
       ];
@@ -146,13 +147,13 @@ export class SceneService {
 
       if (updates.choices !== undefined) {
         setClauses.push(`choices = $${paramCount}`);
-        values.push(JSON.stringify(updates.choices));
+        values.push(updates.choices);  // Pass object directly for JSONB
         paramCount++;
       }
 
       if (updates.metadata !== undefined) {
         setClauses.push(`metadata = $${paramCount}`);
-        values.push(JSON.stringify(updates.metadata));
+        values.push(updates.metadata);  // Pass object directly for JSONB
         paramCount++;
       }
 
@@ -286,8 +287,9 @@ export class SceneService {
       characterId: row.character_id,
       sceneNumber: row.scene_number,
       description: row.description,
-      choices: JSON.parse(row.choices),
-      metadata: JSON.parse(row.metadata),
+      // JSONB columns are already parsed by PostgreSQL
+      choices: typeof row.choices === 'string' ? JSON.parse(row.choices) : row.choices,
+      metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
       isEnding: row.is_ending,
       endingType: row.ending_type,
       createdAt: new Date(row.created_at)

@@ -22,15 +22,17 @@ export class CharacterService {
     background: string;
   }): Promise<Character> {
     try {
+      console.log("Creating character with data:", data);
+
       const defaultStats = this.getDefaultStats(data.class);
       const defaultInventory = this.getDefaultInventory(data.class);
-
       const query = `
         INSERT INTO characters (name, class, background, stats, inventory)
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)
         RETURNING *
       `;
-
+      // Stringify JSON data to ensure valid JSON is sent to Postgres and strip any
+      // non-serializable values (undefined/functions). Casting in SQL ensures JSONB type.
       const values = [
         data.name,
         data.class,
@@ -39,12 +41,13 @@ export class CharacterService {
         JSON.stringify(defaultInventory)
       ];
 
-      const result = await this.db.query(query, values);
+      const result = await this.db.query(query, values);  
+  
       const character = this.mapRowToCharacter(result.rows[0]);
-
+  
       logger.info(`Character created: ${character.name} (ID: ${character.id})`);
       return character;
-    } catch (error) {
+      } catch (error) {
       logger.error('Failed to create character:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('connect')) {
@@ -77,11 +80,11 @@ export class CharacterService {
 
       const query = `
         UPDATE characters 
-        SET stats = $1, updated_at = NOW()
+        SET stats = $1::jsonb, updated_at = NOW()
         WHERE id = $2
       `;
 
-      await this.db.query(query, [JSON.stringify(updatedStats), id]);
+      await this.db.query(query, [JSON.stringify(updatedStats), id]);  // Send JSON string and cast to jsonb
       logger.info(`Character stats updated for ID ${id}`);
     } catch (error) {
       logger.error('Failed to update character stats:', error);
@@ -114,11 +117,11 @@ export class CharacterService {
 
       const query = `
         UPDATE characters 
-        SET inventory = $1, updated_at = NOW()
+        SET inventory = $1::jsonb, updated_at = NOW()
         WHERE id = $2
       `;
 
-      await this.db.query(query, [JSON.stringify(updatedInventory), id]);
+      await this.db.query(query, [JSON.stringify(updatedInventory), id]);  // Send JSON string and cast to jsonb
       logger.info(`Inventory updated for character ID ${id}`);
     } catch (error) {
       logger.error('Failed to update inventory:', error);
@@ -319,13 +322,18 @@ export class CharacterService {
   }
 
   private mapRowToCharacter(row: any): Character {
+    // JSONB columns are already parsed by PostgreSQL, so we don't need to JSON.parse
+    // But handle both cases: if it's already an object, use it; if it's a string, parse it
+    const stats = typeof row.stats === 'string' ? JSON.parse(row.stats) : row.stats;
+    const inventory = typeof row.inventory === 'string' ? JSON.parse(row.inventory) : row.inventory;
+    
     return {
       id: row.id,
       name: row.name,
       class: row.class,
       background: row.background,
-      stats: JSON.parse(row.stats),
-      inventory: JSON.parse(row.inventory),
+      stats,
+      inventory,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at)
     };

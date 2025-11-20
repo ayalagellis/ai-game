@@ -32,7 +32,6 @@ export class GameService {
       
       // Generate scene using AI
       const aiResponse = await this.aiService.generateInitialScene(character);
-      
       // Save initial world state
       await this.mcpClient.setWorldFlag('game_started', true);
       await this.mcpClient.setWorldFlag('character_created', character.name);

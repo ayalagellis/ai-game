@@ -49,7 +49,9 @@ api.interceptors.response.use(
 export const gameAPI = {
   // Start a new game
   startGame: async (request: GameStartRequest): Promise<{ character: Character; scene: any; gameState: GameState }> => {
+    console.log('Starting game with request:', request);
     const response = await api.post('/game/start', request);
+    console.log('Game started successfully with response:', response.data);
     return response.data;
   },
 

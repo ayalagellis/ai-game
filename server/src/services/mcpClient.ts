@@ -12,6 +12,8 @@ import {
   WorldFlag
 } from '../../../shared/types';
 import { logger } from '../utils/logger';
+import path from 'path';
+//this class is used to connect to the MCP server and call the tools
 
 export class MCPClient {
   private client: Client;
@@ -28,14 +30,29 @@ export class MCPClient {
     if (this.isConnected) return;
 
     try {
+      const mcpServerPath = path.resolve(__dirname, '../mcp/mcp-server.ts');
+      console.error("The Path: ", mcpServerPath);
       const transport = new StdioClientTransport({
-        command: 'node',
-        args: ['-e', 'console.log("MCP transport")']
+        command: 'npx',
+        args: ['tsx', mcpServerPath],
+        env: {
+          ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== 'TZ')),
+          DATABASE_URL: process.env['DATABASE_URL'] || '' // Pass DB connection
+        }
       });
-      await this.client.connect(transport);
+      console.error("finished transport command");
+  
+      const connectPromise = this.client.connect(transport);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('MCP connection timeout after 5s')), 5000)
+      );
+     console.error("InBetween");
+      await Promise.race([connectPromise, timeoutPromise]);
+  
+      console.error("Coonnnected!!!!");
       this.isConnected = true;
       logger.info('MCP client connected successfully');
-    } catch (error) {
+      } catch (error) {
       logger.error('Failed to connect MCP client:', error);
       throw new Error('MCP connection failed');
     }
@@ -73,7 +90,13 @@ export class MCPClient {
       // Don't throw error - MCP is optional for basic functionality
     }
   }
-
+//this function does the following:
+//1. Connects to the MCP client
+//2. Calls the loadGameState tool
+//3. Parses the result
+//4. Returns the game state
+//5. If no data is found, returns an empty game state
+//6. If an error occurs, logs the error and returns an empty game state
   async loadGameState(characterId: number): Promise<MCPGameState> {
     try {
       await this.connect();
