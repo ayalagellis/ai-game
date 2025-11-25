@@ -1,176 +1,38 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { 
-  ListToolsRequestSchema,
-  CallToolRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { Router, Request, Response } from 'express';
 import { Pool } from 'pg';
+import { z } from 'zod';
 
 // Database connection
 const pool = new Pool({
   connectionString: process.env['DATABASE_URL'] || ''
 });
 
-const server = new Server(
-  {
-    name: "dynamic-storylines-mcp-server",
-    version: "1.0.0",
-    capabilities: {
-      tools: {},
-    }
-  }
-);
-
-// List all available tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "saveGameState",
-        description: "Save game state for a character",
-        inputSchema: {
-          type: "object",
-          properties: {
-            characterId: { type: "number" },
-            characterData: { type: "string" },
-            sceneData: { type: "string" },
-            timestamp: { type: "string" }
-          },
-          required: ["characterId", "characterData", "sceneData"]
-        }
-      },
-      {
-        name: "loadGameState",
-        description: "Load game state for a character",
-        inputSchema: {
-          type: "object",
-          properties: {
-            characterId: { type: "number" }
-          },
-          required: ["characterId"]
-        }
-      },
-      {
-        name: "updateCharacterStats",
-        description: "Update character statistics",
-        inputSchema: {
-          type: "object",
-          properties: {
-            characterId: { type: "number" },
-            updates: { type: "string" },
-            timestamp: { type: "string" }
-          },
-          required: ["characterId", "updates"]
-        }
-      },
-      {
-        name: "getWorldFlags",
-        description: "Get all world flags",
-        inputSchema: {
-          type: "object",
-          properties: {}
-        }
-      },
-      {
-        name: "setWorldFlag",
-        description: "Set a world flag",
-        inputSchema: {
-          type: "object",
-          properties: {
-            flagName: { type: "string" },
-            value: { type: "string" },
-            timestamp: { type: "string" }
-          },
-          required: ["flagName", "value"]
-        }
-      },
-      {
-        name: "getCharacterMemory",
-        description: "Get character memory",
-        inputSchema: {
-          type: "object",
-          properties: {
-            characterId: { type: "number" }
-          },
-          required: ["characterId"]
-        }
-      },
-      {
-        name: "updateCharacterMemory",
-        description: "Update character memory",
-        inputSchema: {
-          type: "object",
-          properties: {
-            characterId: { type: "number" },
-            updates: { type: "string" },
-            timestamp: { type: "string" }
-          },
-          required: ["characterId", "updates"]
-        }
-      },
-      {
-        name: "getSceneMemory",
-        description: "Get scene memory",
-        inputSchema: {
-          type: "object",
-          properties: {
-            characterId: { type: "number" }
-          },
-          required: ["characterId"]
-        }
-      },
-      {
-        name: "updateSceneMemory",
-        description: "Update scene memory",
-        inputSchema: {
-          type: "object",
-          properties: {
-            characterId: { type: "number" },
-            updates: { type: "string" },
-            timestamp: { type: "string" }
-          },
-          required: ["characterId", "updates"]
-        }
-      },
-      {
-        name: "getWorldMemory",
-        description: "Get world memory",
-        inputSchema: {
-          type: "object",
-          properties: {}
-        }
-      },
-      {
-        name: "updateWorldMemory",
-        description: "Update world memory",
-        inputSchema: {
-          type: "object",
-          properties: {
-            updates: { type: "string" },
-            timestamp: { type: "string" }
-          },
-          required: ["updates"]
-        }
-      }
-    ]
-  };
+// Create the MCP server once (reused across requests)
+const mcpServer = new McpServer({
+  name: "dynamic-storylines-mcp-server",
+  version: "1.0.0"
 });
 
-// Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  
-  try {
-    // ============= SAVE GAME STATE =============
-    if (name === "saveGameState") {
-        const { characterId, characterData, sceneData, timestamp } = args as {
-            characterId: number;
-            characterData: string;
-            sceneData: string;
-            timestamp?: string;
-          };
-          
-      // Store in game_sessions table or a custom table
+// ============= REGISTER ALL TOOLS =============
+
+// Save game state
+mcpServer.registerTool(
+  'saveGameState',
+  {
+    title: 'Save Game State',
+    description: 'Save game state for a character',
+    inputSchema: {
+      characterId: z.number(),
+      characterData: z.string(),
+      sceneData: z.string(),
+      timestamp: z.string().optional()
+    },
+    outputSchema: { success: z.boolean(), message: z.string() }
+  },
+  async ({ characterId, characterData, sceneData, timestamp }) => {
+    try {
       await pool.query(
         `INSERT INTO game_sessions (character_id, game_state, updated_at)
          VALUES ($1, $2, $3)
@@ -179,19 +41,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         [characterId, JSON.stringify({ character: characterData, scene: sceneData }), timestamp || new Date()]
       );
       
+      const output = { success: true, message: "Game state saved" };
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ success: true, message: "Game state saved" })
-        }]
+        content: [{ type: 'text', text: JSON.stringify(output) }],
+        structuredContent: output
       };
+    } catch (error) {
+      throw new Error(`Failed to save game state: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    // ============= LOAD GAME STATE =============
-    if (name === "loadGameState") {
-      const { characterId } = args as { characterId: number };
-      
-      // Load character
+  }
+);
+
+// Load game state
+mcpServer.registerTool(
+  'loadGameState',
+  {
+    title: 'Load Game State',
+    description: 'Load game state for a character',
+    inputSchema: {
+      characterId: z.number()
+    },
+    outputSchema: z.any()
+  },
+  async ({ characterId }) => {
+    try {
       const charResult = await pool.query(
         'SELECT * FROM characters WHERE id = $1',
         [characterId]
@@ -210,13 +83,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
       
-      // Load recent scenes
       const scenesResult = await pool.query(
         'SELECT * FROM scenes WHERE character_id = $1 ORDER BY scene_number DESC LIMIT 5',
         [characterId]
       );
       
-      // Load world flags
       const flagsResult = await pool.query('SELECT * FROM world_flags');
       
       const gameState = {
@@ -237,18 +108,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           npcStates: {} as Record<string, any>,
           worldState: 'active' as string
         }
-      };      
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(gameState)
-        }]
       };
+      
+      return {
+        content: [{ type: 'text', text: JSON.stringify(gameState) }],
+        structuredContent: gameState
+      };
+    } catch (error) {
+      throw new Error(`Failed to load game state: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    // ============= UPDATE CHARACTER STATS =============
-    if (name === "updateCharacterStats") {
-      const { characterId, updates } = args as { characterId: number; updates: string };
+  }
+);
+
+// Update character stats
+mcpServer.registerTool(
+  'updateCharacterStats',
+  {
+    title: 'Update Character Stats',
+    description: 'Update character statistics',
+    inputSchema: {
+      characterId: z.number(),
+      updates: z.string(),
+      timestamp: z.string().optional()
+    },
+    outputSchema: { success: z.boolean(), message: z.string() }
+  },
+  async ({ characterId, updates }) => {
+    try {
       const statsUpdates = JSON.parse(updates);
       
       await pool.query(
@@ -256,29 +142,55 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         [JSON.stringify(statsUpdates), characterId]
       );
       
+      const output = { success: true, message: "Character stats updated" };
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ success: true, message: "Character stats updated" })
-        }]
+        content: [{ type: 'text', text: JSON.stringify(output) }],
+        structuredContent: output
       };
+    } catch (error) {
+      throw new Error(`Failed to update character stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    // ============= GET WORLD FLAGS =============
-    if (name === "getWorldFlags") {
+  }
+);
+
+// Get world flags
+mcpServer.registerTool(
+  'getWorldFlags',
+  {
+    title: 'Get World Flags',
+    description: 'Get all world flags',
+    inputSchema: {},
+    outputSchema: z.array(z.any())
+  },
+  async () => {
+    try {
       const result = await pool.query('SELECT * FROM world_flags');
       
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(result.rows)
-        }]
+        content: [{ type: 'text', text: JSON.stringify(result.rows) }],
+        structuredContent: { rows: result.rows }
       };
+    } catch (error) {
+      throw new Error(`Failed to get world flags: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    // ============= SET WORLD FLAG =============
-    if (name === "setWorldFlag") {
-      const { flagName, value } = args as { flagName: string; value: string };
+  }
+);
+
+// Set world flag
+mcpServer.registerTool(
+  'setWorldFlag',
+  {
+    title: 'Set World Flag',
+    description: 'Set a world flag',
+    inputSchema: {
+      flagName: z.string(),
+      value: z.string(),
+      timestamp: z.string().optional()
+    },
+    outputSchema: { success: z.boolean(), message: z.string() }
+  },
+  async ({ flagName, value }) => {
+    try {
       const parsedValue = JSON.parse(value);
       
       await pool.query(
@@ -289,224 +201,286 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         [flagName, parsedValue]
       );
       
+      const output = { success: true, message: "World flag set" };
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ success: true, message: "World flag set" })
-        }]
+        content: [{ type: 'text', text: JSON.stringify(output) }],
+        structuredContent: output
       };
+    } catch (error) {
+      throw new Error(`Failed to set world flag: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    // ============= GET CHARACTER MEMORY =============
-    if (name === "getCharacterMemory") {
-      const { characterId } = args as { characterId: number };
-      
+  }
+);
+
+// Get character memory
+mcpServer.registerTool(
+  'getCharacterMemory',
+  {
+    title: 'Get Character Memory',
+    description: 'Get character memory',
+    inputSchema: {
+      characterId: z.number()
+    },
+    outputSchema: z.any()
+  },
+  async ({ characterId }) => {
+    try {
       const result = await pool.query(
         'SELECT * FROM characters WHERE id = $1',
         [characterId]
       );
       
-      if (result.rows.length === 0) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              character: {},
-              recentChoices: [],
-              personalityTraits: [],
-              relationships: {}
-            })
-          }]
-        };
-      }
+      const memory = result.rows.length === 0 
+        ? { character: {}, recentChoices: [], personalityTraits: [], relationships: {} }
+        : { character: result.rows[0], recentChoices: [] as string[], personalityTraits: [] as string[], relationships: {} };
       
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            character: result.rows[0],
-            recentChoices: [],
-            personalityTraits: [],
-            relationships: {}
-          })
-        }]
+        content: [{ type: 'text', text: JSON.stringify(memory) }],
+        structuredContent: memory
       };
+    } catch (error) {
+      throw new Error(`Failed to get character memory: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    // ============= UPDATE CHARACTER MEMORY =============
-    if (name === "updateCharacterMemory") {
-        const { characterId, updates } = args as {
-          characterId: number;
-          updates: string;
-        };
-        
-        const memoryUpdates = JSON.parse(updates);
-        
-        // Update character's stats with memory data
-        await pool.query(
-          `UPDATE characters 
-           SET stats = jsonb_set(
-             COALESCE(stats, '{}'::jsonb),
-             '{memory}',
-             $1::jsonb,
-             true
-           ),
-           updated_at = NOW()
-           WHERE id = $2`,
-          [JSON.stringify(memoryUpdates), characterId]
-        );
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ success: true, message: "Character memory updated" })
-          }]
-        };
-      }
-          
-    // ============= GET SCENE MEMORY =============
-    if (name === "getSceneMemory") {
-      const { characterId } = args as { characterId: number };
+  }
+);
+
+// Update character memory
+mcpServer.registerTool(
+  'updateCharacterMemory',
+  {
+    title: 'Update Character Memory',
+    description: 'Update character memory',
+    inputSchema: {
+      characterId: z.number(),
+      updates: z.string(),
+      timestamp: z.string().optional()
+    },
+    outputSchema: { success: z.boolean(), message: z.string() }
+  },
+  async ({ characterId, updates }) => {
+    try {
+      const memoryUpdates = JSON.parse(updates);
       
+      await pool.query(
+        `UPDATE characters 
+         SET stats = jsonb_set(
+           COALESCE(stats, '{}'::jsonb),
+           '{memory}',
+           $1::jsonb,
+           true
+         ),
+         updated_at = NOW()
+         WHERE id = $2`,
+        [JSON.stringify(memoryUpdates), characterId]
+      );
+      
+      const output = { success: true, message: "Character memory updated" };
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output) }],
+        structuredContent: output
+      };
+    } catch (error) {
+      throw new Error(`Failed to update character memory: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+);
+
+// Get scene memory
+mcpServer.registerTool(
+  'getSceneMemory',
+  {
+    title: 'Get Scene Memory',
+    description: 'Get scene memory',
+    inputSchema: {
+      characterId: z.number()
+    },
+    outputSchema: z.any()
+  },
+  async ({ characterId }) => {
+    try {
       const result = await pool.query(
         'SELECT * FROM scenes WHERE character_id = $1 ORDER BY scene_number DESC LIMIT 10',
         [characterId]
       );
       
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            recentScenes: result.rows,
-            importantEvents: [],
-            locationHistory: []
-          })
-        }]
+      const memory = {
+        recentScenes: result.rows,
+        importantEvents: [] as string[],
+        locationHistory: [] as string[]
       };
-    }
-    
-    // ============= UPDATE SCENE MEMORY =============
-    if (name === "updateSceneMemory") {
-        const { characterId, updates } = args as {
-          characterId: number;
-          updates: string;
-        };
-        
-        const memoryUpdates = JSON.parse(updates);
-        
-        // Store in the most recent scene's metadata
-        await pool.query(
-          `UPDATE scenes 
-           SET metadata = jsonb_set(
-             COALESCE(metadata, '{}'::jsonb),
-             '{sceneMemory}',
-             $1::jsonb,
-             true
-           ),
-           updated_at = NOW()
-           WHERE character_id = $2 
-           AND scene_number = (
-             SELECT MAX(scene_number) FROM scenes WHERE character_id = $2
-           )`,
-          [JSON.stringify(memoryUpdates), characterId]
-        );
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ success: true, message: "Scene memory updated" })
-          }]
-        };
-      }
-          
-    // ============= GET WORLD MEMORY =============
-    if (name === "getWorldMemory") {
-      const flagsResult = await pool.query('SELECT * FROM world_flags');
       
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            flags: flagsResult.rows,
-            globalEvents: [],
-            npcStates: {},
-            worldState: 'active'
-          })
-        }]
+        content: [{ type: 'text', text: JSON.stringify(memory) }],
+        structuredContent: memory
       };
+    } catch (error) {
+      throw new Error(`Failed to get scene memory: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    // ============= UPDATE WORLD MEMORY =============
-    if (name === "updateWorldMemory") {
-        const { updates } = args as { updates: string };
-        
-        const memoryUpdates = JSON.parse(updates);
-        
-        // Update world flags if included
-        if (memoryUpdates.flags && Array.isArray(memoryUpdates.flags)) {
-          for (const flag of memoryUpdates.flags) {
-            await pool.query(
-              `INSERT INTO world_flags (name, value, description)
-               VALUES ($1, $2, $3)
-               ON CONFLICT (name)
-               DO UPDATE SET value = $2, updated_at = NOW()`,
-              [
-                flag.flag_name || flag.name, 
-                JSON.stringify(flag.value),
-                flag.description || null
-              ]
-            );
-          }
-        }
-        
-        // Store global events and NPC states in a special world_memory flag
-        if (memoryUpdates.globalEvents || memoryUpdates.npcStates || memoryUpdates.worldState) {
+  }
+);
+
+// Update scene memory
+mcpServer.registerTool(
+  'updateSceneMemory',
+  {
+    title: 'Update Scene Memory',
+    description: 'Update scene memory',
+    inputSchema: {
+      characterId: z.number(),
+      updates: z.string(),
+      timestamp: z.string().optional()
+    },
+    outputSchema: { success: z.boolean(), message: z.string() }
+  },
+  async ({ characterId, updates }) => {
+    try {
+      const memoryUpdates = JSON.parse(updates);
+      
+      await pool.query(
+        `UPDATE scenes 
+         SET metadata = jsonb_set(
+           COALESCE(metadata, '{}'::jsonb),
+           '{sceneMemory}',
+           $1::jsonb,
+           true
+         ),
+         updated_at = NOW()
+         WHERE character_id = $2 
+         AND scene_number = (
+           SELECT MAX(scene_number) FROM scenes WHERE character_id = $2
+         )`,
+        [JSON.stringify(memoryUpdates), characterId]
+      );
+      
+      const output = { success: true, message: "Scene memory updated" };
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output) }],
+        structuredContent: output
+      };
+    } catch (error) {
+      throw new Error(`Failed to update scene memory: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+);
+
+// Get world memory
+mcpServer.registerTool(
+  'getWorldMemory',
+  {
+    title: 'Get World Memory',
+    description: 'Get world memory',
+    inputSchema: {},
+    outputSchema: z.any()
+  },
+  async () => {
+    try {
+      const flagsResult = await pool.query('SELECT * FROM world_flags');
+      
+      const memory = {
+        flags: flagsResult.rows,
+        globalEvents: [] as string[],
+        npcStates: {},
+        worldState: 'active'
+      };
+      
+      return {
+        content: [{ type: 'text', text: JSON.stringify(memory) }],
+        structuredContent: memory
+      };
+    } catch (error) {
+      throw new Error(`Failed to get world memory: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+);
+
+// Update world memory
+mcpServer.registerTool(
+  'updateWorldMemory',
+  {
+    title: 'Update World Memory',
+    description: 'Update world memory',
+    inputSchema: {
+      updates: z.string(),
+      timestamp: z.string().optional()
+    },
+    outputSchema: { success: z.boolean(), message: z.string() }
+  },
+  async ({ updates }) => {
+    try {
+      const memoryUpdates = JSON.parse(updates);
+      
+      if (memoryUpdates.flags && Array.isArray(memoryUpdates.flags)) {
+        for (const flag of memoryUpdates.flags) {
           await pool.query(
             `INSERT INTO world_flags (name, value, description)
-             VALUES ('world_memory', $1, 'Global world state and memory')
+             VALUES ($1, $2, $3)
              ON CONFLICT (name)
-             DO UPDATE SET value = $1, updated_at = NOW()`,
-            [JSON.stringify({
-              globalEvents: memoryUpdates.globalEvents || [],
-              npcStates: memoryUpdates.npcStates || {},
-              worldState: memoryUpdates.worldState || 'active'
-            })]
+             DO UPDATE SET value = $2, updated_at = NOW()`,
+            [
+              flag.flag_name || flag.name, 
+              JSON.stringify(flag.value),
+              flag.description || null
+            ]
           );
         }
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ success: true, message: "World memory updated" })
-          }]
-        };
       }
-          
-    throw new Error(`Unknown tool: ${name}`);
-    
+      
+      if (memoryUpdates.globalEvents || memoryUpdates.npcStates || memoryUpdates.worldState) {
+        await pool.query(
+          `INSERT INTO world_flags (name, value, description)
+           VALUES ('world_memory', $1, 'Global world state and memory')
+           ON CONFLICT (name)
+           DO UPDATE SET value = $1, updated_at = NOW()`,
+          [JSON.stringify({
+            globalEvents: memoryUpdates.globalEvents || [],
+            npcStates: memoryUpdates.npcStates || {},
+            worldState: memoryUpdates.worldState || 'active'
+          })]
+        );
+      }
+      
+      const output = { success: true, message: "World memory updated" };
+      return {
+        content: [{ type: 'text', text: JSON.stringify(output) }],
+        structuredContent: output
+      };
+    } catch (error) {
+      throw new Error(`Failed to update world memory: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+);
+
+// ============= EXPRESS ROUTER =============
+
+export const mcpRouter = Router();
+
+// Single persistent transport (not stateless)
+const transport = new StreamableHTTPServerTransport({
+  sessionIdGenerator: undefined,
+  enableJsonResponse: true
+});
+
+// Connect once at startup
+mcpServer.connect(transport).catch(error => {
+  console.error('Failed to connect MCP server to transport:', error);
+});
+
+mcpRouter.post('/mcp', async (req: Request, res: Response) => {
+  try {
+    await transport.handleRequest(req, res, req.body);
   } catch (error) {
-    console.error(`Error in tool ${name}:`, error);
-    return {
-      content: [{
-        type: "text",
-        text: JSON.stringify({ 
-          error: error instanceof Error ? error.message : 'Unknown error',
-          tool: name
-        })
-      }],
-      isError: true
-    };
+    console.error('Error handling MCP request:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32603,
+          message: 'Internal server error'
+        },
+        id: null
+      });
+    }
   }
 });
 
-// Start the server
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('MCP server started successfully'); // stderr doesn't interfere with protocol
-}
-
-main().catch((error) => {
-  console.error('Failed to start MCP server:', error);
-  process.exit(1);
-});
+export { mcpServer };

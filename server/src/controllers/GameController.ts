@@ -29,7 +29,7 @@ export class GameController {
 
       // Generate initial scene using AI
       const aiResponse = await this.gameService.generateInitialScene(character);
-
+      console.error("Successfully initialized first scene");
       // Convert AI response to Scene and save to database
       const savedScene = await this.sceneService.createScene({
         characterId: character.id,

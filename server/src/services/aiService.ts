@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from '@google/genai';
 import { MCPClient } from './mcpClient';
 import { 
   Character, 
@@ -19,42 +20,44 @@ export class AIService {
 
   
   constructor() {
-    this.genAI = new GoogleGenerativeAI(process.env['GOOGLE_API_KEY'] || '');
+    this.genAI = new GoogleGenerativeAI(process.env['GEMINI_API_KEY'] || '');
     this.mcpClient = new MCPClient();
   }
 
 
-  async generateInitialScene(character: Character): Promise<AIResponse> {
-    try {
-      // Load game state from MCP
-      const gameState = await this.mcpClient.loadGameState(character.id);
-      console.error("finished loading game state: ",gameState);
-      const systemPrompt = this.buildSystemPrompt();
-      const userPrompt = this.buildInitialScenePrompt(character);
+async generateInitialScene(character: Character): Promise<AIResponse> {
+  try {
+    const gameState = await this.mcpClient.loadGameState(character.id);
+    const systemPrompt = this.buildSystemPrompt();
+    const userPrompt = this.buildInitialScenePrompt(character);
+    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
-      const model = this.genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
-        generationConfig: {
-          temperature: 0.8,
+    const model = this.genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: { temperature: 0.8 }
+    });
+
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: fullPrompt }]
         }
-      });
+      ]
+    });
+  console.error("Result: ", result);
+    const responseText = result.response.text();
+    console.error("responseText: ", responseText);
+    const aiResponse = this.parseAIResponse(responseText);
+    console.error("aiResponse: ", aiResponse);
+    await this.mcpClient.saveGameState(character, aiResponse);
 
-      const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
-      const result = await model.generateContent(fullPrompt);
-      console.log("The ai model result:", result);
-      const responseText = result.response.text();
-      console.log("The ai response text:", responseText);
-      const aiResponse = this.parseAIResponse(responseText);
-      console.log("The ai response:", aiResponse);
-      // Save initial state via MCP
-      await this.mcpClient.saveGameState(character, aiResponse);
-      console.log("The game state saved:", gameState);
-      return aiResponse;
-    } catch (error) {
-      logger.error('Failed to generate initial scene:', error);
-      throw new Error('AI scene generation failed');
-    }
+    return aiResponse;
+  } catch (error) {
+    logger.error("Failed to generate initial scene:", error);
+    throw new Error("AI scene generation failed");
   }
+}
 
   async generateNextScene(
     character: Character, 

@@ -8,6 +8,7 @@ import { gameRoutes } from './routes/gameRoutes';
 import { errorHandler } from './utils/errorHandler';
 import { logger } from './utils/logger';
 import { DatabaseService } from './db/databaseService';
+import { mcpRouter } from './mcp/mcp-server';  // Import MCP router
 
 const app = express();
 const PORT = process.env['PORT'] || 3001;
@@ -32,6 +33,9 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api', gameRoutes);
+
+// Mount MCP router - MUST be before 404 handler
+app.use(mcpRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -68,6 +72,7 @@ async function startServer() {
     // Start server
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
+      logger.info(`MCP Server available at http://localhost:${PORT}/mcp`);
       logger.info(`Environment: ${process.env['NODE_ENV']}`);
     });
   } catch (error) {

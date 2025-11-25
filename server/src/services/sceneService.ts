@@ -37,8 +37,8 @@ export class SceneService {
         data.characterId,
         data.sceneNumber,
         data.description,
-        data.choices,  // Pass object directly for JSONB
-        data.metadata,  // Pass object directly for JSONB
+        JSON.stringify(data.choices), 
+        JSON.stringify(data.metadata), 
         data.isEnding,
         data.endingType || null
       ];
