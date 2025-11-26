@@ -57,7 +57,7 @@ export interface Scene {
 }
 
 export interface Choice {
-  id: string;
+  id: number;
   text: string;
   consequences?: ChoiceConsequence[];
   requirements?: ChoiceRequirement[];
@@ -143,7 +143,7 @@ export interface GameStartRequest {
 
 export interface NextSceneRequest {
   characterId: number;
-  choiceId: string;
+  choiceId: number;
   currentSceneId: number;
 }
 

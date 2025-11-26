@@ -7,7 +7,7 @@ const CHARACTER_CLASSES = [
   { value: 'warrior', label: 'Warrior', description: 'A strong fighter with high health and strength' },
   { value: 'mage', label: 'Mage', description: 'A spellcaster with high intelligence and mana' },
   { value: 'rogue', label: 'Rogue', description: 'A stealthy character with high dexterity' },
-  { value: 'cleric', label: 'Cleric', description: 'A holy warrior with healing abilities' }
+  { value: 'prince', label: 'Prince', description: 'A noble leader with high charisma and diplomatic skills' }
 ];
 
 const BACKGROUND_TEMPLATES = [

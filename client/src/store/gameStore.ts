@@ -35,7 +35,7 @@ interface GameStore {
   // Actions
   setCharacterForm: (form: Partial<GameStore['characterForm']>) => void;
   startGame: (request: GameStartRequest) => Promise<void>;
-  makeChoice: (choiceId: string) => Promise<void>;
+  makeChoice: (choiceIndex: number) => Promise<void>;
   loadGameState: (characterId: number) => Promise<void>;
   setCurrentView: (view: GameStore['currentView']) => void;
   setLoading: (loading: boolean) => void;
@@ -99,7 +99,7 @@ export const useGameStore = create<GameStore>()(
           }
           
           const data = await response.json();
-          
+
           if (!data.gameState) {
             throw new Error('Invalid response format: missing gameState');
           }
@@ -122,16 +122,14 @@ export const useGameStore = create<GameStore>()(
         }
       },
       
-      makeChoice: async (choiceId: string) => {
+      makeChoice: async (choiceIndex: number) => {
         const { gameState } = get();
-        if (!gameState) return;
-        
-        set({ isLoading: true, error: null });
-        
+        if (!gameState) return;     
+        set({ isLoading: true, error: null });        
         try {
           const request: NextSceneRequest = {
             characterId: gameState.character.id,
-            choiceId: choiceId,
+            choiceId: choiceIndex,
             currentSceneId: gameState.currentScene.id
           };
           

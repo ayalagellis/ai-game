@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GoogleGenAI } from '@google/genai';
 import { MCPClient } from './mcpClient';
 import { 
   Character, 
@@ -62,7 +61,7 @@ async generateInitialScene(character: Character): Promise<AIResponse> {
   async generateNextScene(
     character: Character, 
     currentScene: Scene, 
-    choiceId: string
+    choiceId: number
   ): Promise<AIResponse> {
     try {
       // Load game state from MCP
@@ -108,107 +107,86 @@ async generateInitialScene(character: Character): Promise<AIResponse> {
 
   private buildSystemPrompt(): string {
     return `You are an AI storyteller for an interactive fantasy RPG game. Your role is to:
-
-1. Generate engaging, immersive scenes with rich descriptions
-2. Create meaningful choices that affect the story and character
-3. Track character stats, inventory, and world state
-4. Provide visual and audio metadata for scene rendering
-5. Determine when stories should end and what type of ending
-
-IMPORTANT: Always respond with valid JSON in this exact format:
-{
-  "sceneText": "Rich, descriptive scene text (2-3 paragraphs)",
-  "choices": [
-    {
-      "id": "choice1",
-      "text": "Choice description",
-      "consequences": [
+  
+  1. Generate engaging, immersive scenes with rich descriptions
+  2. Create meaningful choices that affect the story and character
+  3. Track character stats, inventory, and world state
+  4. Provide visual and audio metadata for scene rendering
+  5. Determine when stories should end and what type of ending
+  6. The story generated for each scene must not exceed five sentences.
+  
+  IMPORTANT: Always respond with valid JSON.
+  
+  AVAILABLE BACKGROUNDS (choose exactly one based on the scene):
+  - cavern_entrance
+  - castle_interior
+  - coastal_cliff
+  - desert_oasis
+  - dungeon_corridor
+  - forest_path
+  - library_ancient
+  - magical_grove
+  - meadow_flowers
+  - merchant_shop
+  - mountain_peak
+  - prison_cells
+  
+  AVAILABLE AMBIENT AUDIO:
+  - adventure
+  - castle
+  - coin_drop
+  - windy_pass
+  - footsteps
+  - forest
+  - page_turn
+  - night_crickets
+  
+  When generating visual metadata:
+  - "name" MUST be exactly one of the available names above.
+  - "path" MUST follow this pattern:
+    "/assets/backgrounds/<name>.jpg" for backgrounds
+    "/assets/sounds/<name>.mp3" for audio
+  - NEVER output placeholder text, examples, or angle brackets.
+  - ALWAYS output the final concrete chosen name.
+  
+  JSON FORMAT TO FOLLOW:
+  {
+    "sceneText": "Rich descriptive text (2-3 paragraphs)",
+    "choices": [ ... ],
+    "visualMetadata": {
+      "visualAssets": [
         {
-          "type": "stat_change",
-          "target": "health",
-          "value": -10,
-          "description": "You take damage"
+          "type": "background",
+          "name": "<one valid background name>",
+          "path": "/assets/backgrounds/<same_name>.jpg"
         }
       ],
-      "requirements": [
+      "audioAssets": [
         {
-          "type": "stat",
-          "target": "strength",
-          "operator": ">=",
-          "value": 12
+          "type": "ambient",
+          "name": "<one valid audio name>",
+          "path": "/assets/sounds/<same_name>.wav",
+          "volume": 0.7,
+          "loop": true
         }
-      ]
-    }
-  ],
-  "visualMetadata": {
-    "visualAssets": [
-      {
-        "type": "background",
-        "name": "forest_path",
-        "path": "/assets/backgrounds/forest_path.jpg"
-      }
-    ],
-    "audioAssets": [
-      {
-        "type": "ambient",
-        "name": "forest_sounds",
-        "path": "/assets/sounds/forest_ambient.mp3",
-        "volume": 0.7,
-        "loop": true
-      }
-    ],
-    "particleEffects": [
-      {
-        "type": "magic",
-        "intensity": "medium",
-        "duration": 5000
-      }
-    ],
-    "mood": "mysterious",
-    "timeOfDay": "evening",
-    "weather": "clear"
-  },
-  "isEnding": false,
-  "endingType": null,
-  "characterUpdates": {
-    "health": 90,
-    "experience": 25
-  },
-  "worldFlagUpdates": {
-    "met_wise_wizard": true,
-    "forest_explored": true
-  },
-  "inventoryChanges": {
-    "gained": [
-      {
-        "id": "magic_scroll",
-        "name": "Scroll of Wisdom",
-        "description": "A mystical scroll that enhances intelligence",
-        "type": "consumable",
-        "value": 50,
-        "quantity": 1,
-        "effects": [
-          {
-            "type": "stat",
-            "target": "intelligence",
-            "value": 2,
-            "duration": 3600
-          }
-        ]
-      }
-    ],
-    "lost": []
+      ],
+      "particleEffects": [],
+      "mood": "mysterious",
+      "timeOfDay": "evening",
+      "weather": "clear"
+    },
+    "isEnding": false,
+    "endingType": null,
+    "characterUpdates": {},
+    "worldFlagUpdates": {},
+    "inventoryChanges": { "gained": [], "lost": [] }
   }
-}
-
-Guidelines:
-- Create 3-4 meaningful choices per scene
-- Use consequences to affect stats, inventory, and world state
-- Use requirements to gate choices based on character abilities
-- Vary mood, time, and weather to create atmosphere
-- Track important NPCs and locations via world flags
-- End stories naturally after 15-20 scenes or when appropriate
-- Ending types: victory, defeat, neutral, mystery, romance, tragedy`;
+  
+  Guidelines:
+  - Create 3–4 meaningful choices
+  - Use consequences to affect stats and world state
+  - Vary mood, time, and weather based on story context
+  - End stories naturally after ~15–20 scenes or when appropriate.`;
   }
 
   private buildInitialScenePrompt(character: Character): string {
@@ -229,7 +207,7 @@ Consider the character's starting stats and create choices that might test diffe
   private buildNextScenePrompt(
     character: Character, 
     currentScene: Scene, 
-    choiceId: string,
+    choiceId: number,
     gameState: MCPGameState
   ): string {
     const selectedChoice = currentScene.choices.find(c => c.id === choiceId);
@@ -284,7 +262,7 @@ Create meaningful choices that continue the narrative while allowing for charact
         sceneText: "The story continues...",
         choices: [
           {
-            id: "continue",
+            id: 1,
             text: "Continue forward"
           }
         ],

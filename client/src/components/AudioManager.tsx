@@ -24,7 +24,7 @@ export function AudioManager() {
         audioRef.current = new Howl({
           src: [ambientAudio.path],
           volume: ambientAudio.volume || 0.5,
-          loop: ambientAudio.loop || true,
+          loop: ambientAudio.loop ?? true,
           onloaderror: () => {
             console.warn('Failed to load audio:', ambientAudio.path);
           }

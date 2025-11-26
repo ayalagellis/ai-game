@@ -22,8 +22,6 @@ export class CharacterService {
     background: string;
   }): Promise<Character> {
     try {
-      console.log("Creating character with data:", data);
-
       const defaultStats = this.getDefaultStats(data.class);
       const defaultInventory = this.getDefaultInventory(data.class);
       const query = `

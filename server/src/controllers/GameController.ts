@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+//import { Request, Response, NextFunction } from 'express';
 import { GameService } from '../services/gameService';
 import { CharacterService } from '../services/characterService';
 import { SceneService } from '../services/sceneService';
@@ -77,13 +77,15 @@ export class GameController {
       // Get current character and scene
       const character = await this.characterService.getCharacter(data.characterId);
       const currentScene = await this.sceneService.getScene(data.currentSceneId);
+      const selectedChoice = data.choiceId;
 
       // Process player choice and generate next scene
       const nextScene = await this.gameService.processChoiceAndGenerateNextScene(
         character,
         currentScene,
-        data.choiceId
+        selectedChoice
       );
+      console.error("Next Scene: ", nextScene);
 
       // Update character stats if needed
       if (nextScene.characterUpdates) {
@@ -105,7 +107,7 @@ export class GameController {
           nextScene.inventoryChanges
         );
       }
-
+      console.error("Before screen Saved:::");
       // Save the new scene
       const savedScene = await this.sceneService.createScene({
         characterId: data.characterId,
@@ -116,7 +118,7 @@ export class GameController {
         isEnding: nextScene.isEnding,
         ...(nextScene.endingType && { endingType: nextScene.endingType })
       });
-
+      console.error("CREATED SCENE")
       // Get updated character
       const updatedCharacter = await this.characterService.getCharacter(data.characterId);
 

@@ -122,7 +122,7 @@ export const GameStartRequestSchema = z.object({
 
 export const NextSceneRequestSchema = z.object({
   characterId: z.number(),
-  choiceId: z.string(),
+  choiceId: z.number(),
   currentSceneId: z.number(),
 });
 

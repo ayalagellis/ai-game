@@ -3,22 +3,15 @@ import { Choice, Character } from '@shared/types';
 
 interface ChoiceButtonsProps {
   choices: Choice[];
-  onChoiceSelect: (choiceId: string) => void;
+  onChoiceSelect: (choiceIndex: number) => void;
   isLoading: boolean;
   character: Character;
 }
 
 export function ChoiceButtons({ choices, onChoiceSelect, isLoading, character: _character }: ChoiceButtonsProps) {
-  const handleChoiceClick = async (choice: Choice) => {
+  const handleChoiceClick = async (choiceIndex: number) => {
     if (isLoading) return;
-
-    // Check if choice has requirements
-    if (choice.requirements && choice.requirements.length > 0) {
-      // For now, we'll allow all choices - in a real implementation,
-      // you'd validate requirements here
-    }
-
-    await onChoiceSelect(choice.id);
+    await onChoiceSelect(choiceIndex);
   };
 
   if (choices.length === 0) {
@@ -35,8 +28,8 @@ export function ChoiceButtons({ choices, onChoiceSelect, isLoading, character: _
       <div className="space-y-3">
         {choices.map((choice, index) => (
           <motion.button
-            key={choice.id}
-            onClick={() => handleChoiceClick(choice)}
+            key={index}
+            onClick={() => handleChoiceClick(index)}
             disabled={isLoading}
             className={`choice-button w-full text-left ${
               isLoading ? 'opacity-50 cursor-not-allowed' : ''

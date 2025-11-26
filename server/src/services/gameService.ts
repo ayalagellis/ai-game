@@ -47,7 +47,7 @@ export class GameService {
   async processChoiceAndGenerateNextScene(
     character: Character,
     currentScene: Scene,
-    choiceId: string
+    choiceId: number
   ): Promise<AIResponse> {
     try {
       logger.info(`Processing choice ${choiceId} for character ${character.name}`);
@@ -144,13 +144,13 @@ export class GameService {
 
         // Create nodes for each choice
         scene.choices.forEach((choice, choiceIndex) => {
-          const choiceNodeId = `choice-${scene.id}-${choice.id}`;
+          const choiceNodeId = `choice-${scene.id}-${choiceIndex}`;
           tree.nodes.push({
             id: choiceNodeId,
             type: 'choice',
             data: {
               label: choice.text.substring(0, 50) + '...',
-              choiceId: choice.id,
+              choiceId: choiceIndex,
               consequences: choice.consequences || []
             },
             position: {
@@ -161,7 +161,7 @@ export class GameService {
 
           // Create edge from scene to choice
           tree.edges.push({
-            id: `edge-${scene.id}-${choice.id}`,
+            id: `edge-${scene.id}-${choiceIndex}`,
             source: `scene-${scene.id}`,
             target: choiceNodeId,
             type: 'scene-to-choice'
@@ -181,7 +181,7 @@ export class GameService {
         if (firstChoice) {
           tree.edges.push({
             id: `edge-choice-${currentScene.id}-scene-${nextScene.id}`,
-            source: `choice-${currentScene.id}-${firstChoice.id}`,
+            source: `choice-${currentScene.id}-${firstChoice}`,
             target: `scene-${nextScene.id}`,
             type: 'choice-to-scene'
           });

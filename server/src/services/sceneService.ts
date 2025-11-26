@@ -288,7 +288,8 @@ export class SceneService {
       sceneNumber: row.scene_number,
       description: row.description,
       // JSONB columns are already parsed by PostgreSQL
-      choices: typeof row.choices === 'string' ? JSON.parse(row.choices) : row.choices,
+      //choices: typeof row.choices === 'string' ? JSON.parse(row.choices) : row.choices,
+      choices: row.choices ?? [],   
       metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
       isEnding: row.is_ending,
       endingType: row.ending_type,
