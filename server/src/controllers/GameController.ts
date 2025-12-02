@@ -2,7 +2,7 @@
 import { GameService } from '../services/gameService';
 import { CharacterService } from '../services/characterService';
 import { SceneService } from '../services/sceneService';
-import { GameStartRequest, NextSceneRequest, Character, GameState } from '../../../shared/types';
+import { GameStartRequest, NextSceneRequest, GameState } from '../../../shared/types';
 
 export class GameController {
   private gameService: GameService;
@@ -85,7 +85,6 @@ export class GameController {
         currentScene,
         selectedChoice
       );
-      console.error("Next Scene: ", nextScene);
 
       // Update character stats if needed
       if (nextScene.characterUpdates) {

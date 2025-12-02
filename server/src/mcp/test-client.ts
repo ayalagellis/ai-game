@@ -26,7 +26,7 @@ const result = await client.callTool({
     }
 });
 
-console.log('Result:', result);
+//console.log('Result:', result);
 
 // Close the connection
 await client.close();

@@ -10,6 +10,9 @@ export function SceneDisplay() {
   const [showInventory, setShowInventory] = useState(false);
   const [typingText, setTypingText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  
+  // Track which scenes have been typed out
+  const typedScenesRef = useRef<Set<number>>(new Set());
 
   // AUDIO REFERENCE
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -28,11 +31,20 @@ export function SceneDisplay() {
   const { currentScene, character } = gameState;
 
   // --------------------------------------------------------
-  // TYPEWRITER EFFECT
+  // TYPEWRITER EFFECT - Only on first view
   // --------------------------------------------------------
   useEffect(() => {
     if (!currentScene.description) return;
 
+    // Check if this scene has already been typed
+    if (typedScenesRef.current.has(currentScene.id)) {
+      // Show immediately without typing
+      setTypingText(currentScene.description);
+      setIsTyping(false);
+      return;
+    }
+
+    // First time seeing this scene - type it out
     setIsTyping(true);
     setTypingText('');
 
@@ -43,12 +55,13 @@ export function SceneDisplay() {
         index++;
       } else {
         setIsTyping(false);
+        typedScenesRef.current.add(currentScene.id); // Mark as typed
         clearInterval(interval);
       }
     }, 30);
 
     return () => clearInterval(interval);
-  }, [currentScene.description]);
+  }, [currentScene.id, currentScene.description]);
 
   // --------------------------------------------------------
   // AMBIENT AUDIO HANDLER
@@ -95,8 +108,8 @@ export function SceneDisplay() {
           : "none",
       }}
     >
-<div className="max-w-6xl mx-auto p-4">
-{/* Header */}
+      <div className="max-w-6xl mx-auto p-4">
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -140,7 +153,7 @@ export function SceneDisplay() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
               className="card bg-transparent"
-              >
+            >
               <div className="scene-text">
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -165,20 +178,25 @@ export function SceneDisplay() {
               </div>
             </motion.div>
 
-            {/* Choices */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <ChoiceButtons
-                key={currentScene.id}
-                choices={currentScene.choices}
-                onChoiceSelect={handleChoiceSelect}
-                isLoading={isLoading}
-                character={character}
-              />
-            </motion.div>
+            {/* Choices - Only show after typing is complete */}
+            <AnimatePresence>
+              {!isTyping && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ChoiceButtons
+                    key={currentScene.id}
+                    choices={currentScene.choices}
+                    onChoiceSelect={handleChoiceSelect}
+                    isLoading={isLoading}
+                    character={character}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* SIDE PANELS */}
@@ -199,7 +217,7 @@ export function SceneDisplay() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
               className="card bg-transparent"
-              >
+            >
               <h3 className="text-lg font-medium text-white mb-4">Scene Details</h3>
 
               <div className="space-y-2 text-sm">
@@ -228,7 +246,7 @@ export function SceneDisplay() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.6 }}
               className="card bg-transparent"
-              >
+            >
               <h3 className="text-lg font-medium text-white mb-4">Progress</h3>
 
               <div className="space-y-3">
