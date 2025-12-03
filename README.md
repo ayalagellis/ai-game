@@ -1,10 +1,10 @@
 # Dynamic Storylines
 
-A full-stack interactive storytelling game with AI-driven dynamic storylines. Features GPT-4 powered narrative generation, MCP integration for persistent state management, and a modern React frontend with visual effects.
+A full-stack interactive storytelling game with AI-driven dynamic storylines. Features Gemini powered narrative generation, MCP integration for persistent state management, and a modern React frontend with visual effects.
 
 ## Features
 
-- **AI-Driven Storytelling**: GPT-4 generates dynamic, branching narratives based on player choices
+- **AI-Driven Storytelling**: Gemini generates dynamic, branching narratives based on player choices
 - **Persistent State Management**: MCP tools handle character stats, inventory, and world state
 - **Modern UI**: React 18 with Framer Motion animations and particle effects
 - **Audio Integration**: Ambient sounds and audio feedback with Howler.js
@@ -26,7 +26,7 @@ A full-stack interactive storytelling game with AI-driven dynamic storylines. Fe
 
 ### Backend
 - Node.js + Express + TypeScript
-- OpenAI GPT-4 API
+- Gemini
 - MCP (Model Context Protocol) SDK
 - PostgreSQL database
 
@@ -65,7 +65,7 @@ cp client/env.example client/.env
 ```
 
 4. **Configure environment variables:**
-   - Edit `server/.env` with your database credentials and OpenAI API key
+   - Edit `server/.env` with your database credentials and Gemini API key
    - Edit `client/.env` with your API configuration
 
 5. **Set up the database:**
@@ -87,7 +87,7 @@ npm run dev
 **Server (.env):**
 ```env
 DATABASE_URL=postgresql://username:password@localhost:5432/dynamic_storylines
-OPENAI_API_KEY=your_openai_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 PORT=3001
 NODE_ENV=development
 ```
@@ -103,7 +103,7 @@ VITE_ENABLE_ANIMATIONS=true
 ## Game Flow
 
 1. **Character Creation**: Player creates character with name, class, and background
-2. **AI Scene Generation**: GPT-4 generates dynamic scenes based on character and choices
+2. **AI Scene Generation**: Gemini generates dynamic scenes based on character and choices
 3. **Visual Rendering**: Frontend maps visual assets, plays audio, and shows particles
 4. **Player Choice**: Player selects from AI-generated choices
 5. **State Update**: MCP tools update character stats and world state
@@ -170,7 +170,7 @@ dynamic-storylines/
 ## Key Features
 
 ### AI-Driven Storytelling
-- **GPT-4 Integration**: Advanced AI generates dynamic, branching narratives
+- **Gemini Integration**: Advanced AI generates dynamic, branching narratives
 - **Context Awareness**: AI tracks character stats, inventory, and world state
 - **Consequence System**: Player choices have meaningful impacts on the story
 - **Ending Generation**: AI determines appropriate story conclusions
@@ -239,7 +239,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- OpenAI for GPT-4 API
+- Gemini
 - Model Context Protocol for state management
 - React and TypeScript communities
 - All the open-source libraries used in this project

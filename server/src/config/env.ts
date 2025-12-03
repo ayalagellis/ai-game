@@ -12,7 +12,7 @@ const envPaths = [
   path.resolve(process.cwd(), 'server', '.env'),  // If running from project root
 ];
 
-// Try each path until we find a .env file with OPENAI_API_KEY
+// Try each path until we find a .env file with GEMINI_API_KEY
 let envLoaded = false;
 for (const envPath of envPaths) {
   if (existsSync(envPath)) {
