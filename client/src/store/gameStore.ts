@@ -1,13 +1,9 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { 
-  Character, 
-  Scene, 
   GameState, 
   GameStartRequest, 
-  NextSceneRequest,
-  WorldFlag,
-  AIResponse
+  NextSceneRequest
 } from '@shared/types';
 
 interface GameStore {
@@ -210,6 +206,7 @@ export const useGameStore = create<GameStore>()(
       },
       
       resetGame: () => {
+        // Reset all state and explicitly set view to character creation
         set({
           gameState: null,
           isLoading: false,

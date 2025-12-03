@@ -38,15 +38,15 @@ function App() {
   const renderCurrentView = () => {
     switch (currentView) {
       case 'character-creation':
-        return <CharacterCreation />;
+        return <CharacterCreation key="character-creation" />;
       case 'game':
-        return <SceneDisplay />;
+        return <SceneDisplay key="game" />;
       case 'ending':
-        return <EndingScreen />;
+        return <EndingScreen key="ending" />;
       case 'decision-tree':
-        return <DecisionTree />;
+        return <DecisionTree key="decision-tree" />;
       default:
-        return <CharacterCreation />;
+        return <CharacterCreation key="character-creation-default" />;
     }
   };
 
@@ -79,7 +79,7 @@ function App() {
 
       {/* Main Content */}
       <main className="relative z-10">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           {isLoading ? (
             <LoadingSpinner key="loading" />
           ) : error ? (

@@ -19,8 +19,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   const handleResetGame = () => {
     if (window.confirm('Are you sure you want to reset the game? This will start a new character creation.')) {
-      resetGame();
+      // Close settings panel first
       onClose();
+      // Small delay to ensure settings panel closes before reset
+      setTimeout(() => {
+        resetGame();
+      }, 100);
     }
   };
 

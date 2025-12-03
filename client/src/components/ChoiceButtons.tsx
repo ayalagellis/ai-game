@@ -4,13 +4,20 @@ import { Choice, Character } from '@shared/types';
 interface ChoiceButtonsProps {
   choices: Choice[];
   onChoiceSelect: (choiceIndex: number) => void;
+  onChoiceClick?: () => void;
   isLoading: boolean;
   character: Character;
 }
 
-export function ChoiceButtons({ choices, onChoiceSelect, isLoading, character: _character }: ChoiceButtonsProps) {
+export function ChoiceButtons({ choices, onChoiceSelect, onChoiceClick, isLoading, character: _character }: ChoiceButtonsProps) {
   const handleChoiceClick = async (choiceIndex: number) => {
     if (isLoading) return;
+    
+    // Stop audio immediately when choice is clicked
+    if (onChoiceClick) {
+      onChoiceClick();
+    }
+    
     await onChoiceSelect(choiceIndex);
   };
 

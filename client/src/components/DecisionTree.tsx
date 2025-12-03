@@ -3,9 +3,13 @@ import { useGameStore } from '../store/gameStore';
 import { ReactFlow, Node, Edge, Background, Controls, MiniMap } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { ArrowLeft, Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { useRef } from 'react';
 
 export function DecisionTree() {
   const { gameState, setCurrentView } = useGameStore();
+  const treeRef = useRef<HTMLDivElement>(null);
 
   if (!gameState) {
     return (
@@ -127,7 +131,7 @@ export function DecisionTree() {
     }
   }
 
-  const handleBack = () => {
+  const handleBack = (): void => {
     if (gameState.gameProgress.isGameOver) {
       setCurrentView('ending');
     } else {
@@ -135,23 +139,30 @@ export function DecisionTree() {
     }
   };
 
-  const handleDownload = () => {
-    const data = {
-      character: character.name,
-      class: character.class,
-      scenes: sceneHistory.length,
-      ending: gameState.currentScene.isEnding,
-      endingType: gameState.currentScene.endingType,
-      decisionTree: { nodes, edges }
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${character.name}-decision-tree.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownload = async (): Promise<void> => {
+    if (!treeRef.current) return;
+
+    try {
+      // Capture the tree visualization as canvas
+      const canvas = await html2canvas(treeRef.current, {
+        backgroundColor: '#1f2937', // Match your background color
+        scale: 2, // Higher quality
+        logging: false,
+      });
+
+      // Convert to PDF
+      const imgData: string = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save(`${character.name}-decision-tree.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
   };
 
   return (
@@ -191,8 +202,9 @@ export function DecisionTree() {
           </div>
         </motion.div>
 
-        {/* React Flow */}
+        {/* React Flow - This is what gets captured */}
         <motion.div
+          ref={treeRef}
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}

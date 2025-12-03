@@ -5,39 +5,39 @@ import { StatsPanel } from './StatsPanel';
 import { ChoiceButtons } from './ChoiceButtons';
 import { InventoryPanel } from './InventoryPanel';
 
+// Module-level Set that persists across component unmounts/remounts
+const typedScenes = new Set<number>();
+
+// Function to clear typed scenes (useful when resetting game)
+export const clearTypedScenes = () => {
+  typedScenes.clear();
+};
+
 export function SceneDisplay() {
   const { gameState, makeChoice, isLoading } = useGameStore();
   const [showInventory, setShowInventory] = useState(false);
   const [typingText, setTypingText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  
-  // Track which scenes have been typed out
-  const typedScenesRef = useRef<Set<number>>(new Set());
 
   // AUDIO REFERENCE
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  if (!gameState) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">No Game State</h2>
-          <p className="text-gray-400">Please start a new game.</p>
-        </div>
-      </div>
-    );
-  }
-
-  const { currentScene, character } = gameState;
+  // Extract currentScene and character safely
+  const currentScene = gameState?.currentScene;
+  const character = gameState?.character;
 
   // --------------------------------------------------------
   // TYPEWRITER EFFECT - Only on first view
   // --------------------------------------------------------
   useEffect(() => {
-    if (!currentScene.description) return;
+    if (!currentScene?.description) {
+      setTypingText('');
+      setIsTyping(false);
+      return;
+    }
 
-    // Check if this scene has already been typed
-    if (typedScenesRef.current.has(currentScene.id)) {
+    // Check if this scene has already been typed (using module-level Set)
+    if (typedScenes.has(currentScene.id)) {
       // Show immediately without typing
       setTypingText(currentScene.description);
       setIsTyping(false);
@@ -55,21 +55,28 @@ export function SceneDisplay() {
         index++;
       } else {
         setIsTyping(false);
-        typedScenesRef.current.add(currentScene.id); // Mark as typed
+        typedScenes.add(currentScene.id); // Mark as typed in module-level Set
         clearInterval(interval);
       }
     }, 30);
 
     return () => clearInterval(interval);
-  }, [currentScene.id, currentScene.description]);
+  }, [currentScene?.id, currentScene?.description]);
 
   // --------------------------------------------------------
   // AMBIENT AUDIO HANDLER
   // --------------------------------------------------------
   useEffect(() => {
-    const ambient = currentScene.metadata?.audioAssets?.[0];
+    const ambient = currentScene?.metadata?.audioAssets?.[0];
 
-    if (!ambient) return;
+    if (!ambient) {
+      // Clean up audio if no ambient sound
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      return;
+    }
 
     const audio = new Audio(ambient.path);
     audio.loop = ambient.loop ?? true;
@@ -82,22 +89,43 @@ export function SceneDisplay() {
 
     return () => {
       audio.pause();
+      audioRef.current = null;
     };
-  }, [currentScene.id]);
+  }, [currentScene?.id]);
 
   // --------------------------------------------------------
   // BACKGROUND IMAGE HANDLER
   // --------------------------------------------------------
   const backgroundImagePath =
-    currentScene.metadata?.visualAssets?.[0]?.path ?? null;
+    currentScene?.metadata?.visualAssets?.[0]?.path ?? null;
 
-  const handleChoiceSelect = async (choiceIndex: number) => {
-    await makeChoice(choiceIndex);
-  };
+const stopAudio = () => {
+  // Stop the current audio immediately
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current = null;
+  }
+};
+
+const handleChoiceSelect = async (choiceIndex: number) => {
+  await makeChoice(choiceIndex);
+};
 
   // --------------------------------------------------------
   // RENDER
   // --------------------------------------------------------
+
+  // Early return check - AFTER all hooks are called
+  if (!gameState || !currentScene || !character) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">No Game State</h2>
+          <p className="text-gray-400">Please start a new game.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -191,6 +219,7 @@ export function SceneDisplay() {
                     key={currentScene.id}
                     choices={currentScene.choices}
                     onChoiceSelect={handleChoiceSelect}
+                    onChoiceClick={stopAudio}
                     isLoading={isLoading}
                     character={character}
                   />

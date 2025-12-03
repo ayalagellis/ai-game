@@ -166,9 +166,9 @@ mcpServer.registerTool(
     try {
       const result = await pool.query('SELECT * FROM world_flags');
       
+      // Return array in content text only (structuredContent must be object, not array)
       return {
-        content: [{ type: 'text', text: JSON.stringify(result.rows) }],
-        structuredContent: { rows: result.rows }
+        content: [{ type: 'text', text: JSON.stringify(result.rows) }]
       };
     } catch (error) {
       throw new Error(`Failed to get world flags: ${error instanceof Error ? error.message : 'Unknown error'}`);

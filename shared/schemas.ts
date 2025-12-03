@@ -133,7 +133,7 @@ export const AIResponseSchema = z.object({
   isEnding: z.boolean(),
   endingType: z.enum(['victory', 'defeat', 'neutral', 'mystery', 'romance', 'tragedy']).optional(),
   characterUpdates: CharacterStatsSchema.partial().optional(),
-  worldFlagUpdates: z.record(z.any()).optional(),
+  worldFlagUpdates: z.record(z.string(), z.any()).optional(),
   inventoryChanges: z.object({
     gained: z.array(InventoryItemSchema),
     lost: z.array(z.string()),
