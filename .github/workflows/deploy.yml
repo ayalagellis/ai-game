@@ -29,12 +29,12 @@ jobs:
       - name: Build and push image
         run: |
           if [ "${{ matrix.app }}" = "backend" ]; then
-            docker build -f docker/server.Dockerfile -t ${{ vars.ECR_BACKEND_REPO }}:latest .
+            docker build -f Docker/server.Dockerfile -t ${{ vars.ECR_BACKEND_REPO }}:latest .
             docker tag ${{ vars.ECR_BACKEND_REPO }}:latest \
               $AWS_ACCOUNT_ID.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_BACKEND_REPO }}:latest
             docker push $AWS_ACCOUNT_ID.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_BACKEND_REPO }}:latest
           else
-            docker build -f docker/client.Dockerfile -t ${{ vars.ECR_FRONTEND_REPO }}:latest .
+            docker build -f Docker/client.Dockerfile -t ${{ vars.ECR_FRONTEND_REPO }}:latest .
             docker tag ${{ vars.ECR_FRONTEND_REPO }}:latest \
               $AWS_ACCOUNT_ID.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_FRONTEND_REPO }}:latest
             docker push $AWS_ACCOUNT_ID.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_FRONTEND_REPO }}:latest
