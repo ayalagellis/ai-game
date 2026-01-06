@@ -1,0 +1,33 @@
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/server.Dockerfile
+    image: myapp-backend:local
+    container_name: myapp-backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DISABLE_DB: "true"
+
+    networks:
+      - myapp-net
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/client.Dockerfile
+    image: myapp-frontend:local
+    container_name: myapp-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - myapp-net
+
+networks:
+  myapp-net:
+    driver: bridge

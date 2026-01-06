@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
-import { Character, CharacterStats, InventoryItem } from '../../../shared/types';
-import { logger } from '../utils/logger';
+import { Character, CharacterStats, InventoryItem } from '../../../shared/types.js';
+import { logger } from '../utils/logger.js';
 
 export class CharacterService {
   private db: Pool;

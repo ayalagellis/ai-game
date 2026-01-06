@@ -23,7 +23,7 @@ class Logger {
   private logLevel: string;
 
   constructor() {
-    this.logLevel = process.env.LOG_LEVEL || 'info';
+    this.logLevel = process.env["LOG_LEVEL"] || 'info';
   }
 
   private shouldLog(level: string): boolean {

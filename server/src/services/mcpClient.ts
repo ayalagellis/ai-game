@@ -9,8 +9,8 @@ import {
   WorldMemory,
   CharacterStats,
   WorldFlag
-} from '../../../shared/types';
-import { logger } from '../utils/logger';
+} from '../../../shared/types.js';
+import { logger } from '../utils/logger.js';
 
 // This class is used to connect to the MCP server via HTTP and call the tools
 export class MCPClient {

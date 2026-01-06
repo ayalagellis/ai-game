@@ -91,7 +91,7 @@ echo 4. Run 'npm run dev' to start the development servers
 echo.
 echo [INFO] Development servers will run on:
 echo   - Frontend: http://localhost:5173
-echo   - Backend: http://localhost:3001
+echo   - Backend: http://localhost:3000
 echo.
 echo [INFO] For production deployment:
 echo   - Run 'npm run build' to build both client and server

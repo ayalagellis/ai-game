@@ -1,17 +1,13 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { MCPClient } from './mcpClient';
+import { MCPClient } from './mcpClient.js';
 import { 
   Character, 
-  Scene, 
-  Choice, 
-  SceneMetadata, 
+  Scene,  
   AIResponse, 
   MCPGameState,
-  CharacterStats,
-  WorldFlag,
   EndingType
-} from '../../../shared/types';
-import { logger } from '../utils/logger';
+} from '../../../shared/types.js';
+import { logger } from '../utils/logger.js';
 
 export class AIService {
   private genAI: GoogleGenerativeAI;

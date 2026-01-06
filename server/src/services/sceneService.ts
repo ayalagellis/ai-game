@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
-import { Scene, Choice, SceneMetadata } from '../../../shared/types';
-import { logger } from '../utils/logger';
+import { Scene, Choice, SceneMetadata } from '../../../shared/types.js';
+import { logger } from '../utils/logger.js';
 
 export class SceneService {
   private db: Pool;

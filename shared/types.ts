@@ -136,15 +136,15 @@ export interface GameState {
 }
 
 export interface GameStartRequest {
-  characterName: string;
-  characterClass: string;
-  characterBackground: string;
+  characterName?: string;
+  characterClass?: string;
+  characterBackground?: string;
 }
 
 export interface NextSceneRequest {
-  characterId: number;
-  choiceId: number;
-  currentSceneId: number;
+  characterId?: number;
+  choiceId?: number;
+  currentSceneId?: number;
 }
 
 export interface AIResponse {

@@ -1,6 +1,8 @@
 import { Router } from 'express';
-import { GameController } from '../controllers/GameController';
-import { validateGameStartRequest, validateNextSceneRequest } from '../../../shared/schemas';
+import { GameController } from '../controllers/GameController.js';
+//import { validateGameStartRequest, validateNextSceneRequest } from '../../../shared/schemas.js';
+import { validateGameStartRequest, validateNextSceneRequest } from '../../../shared/dist/schemas.js';
+
 
 const router = Router();
 const gameController = new GameController();
@@ -10,17 +12,18 @@ router.post('/game/start', async (req, res, next) => {
   try {
     console.log('Received game start request:', req.body);
     const validatedData = validateGameStartRequest(req.body);
-    console.log('Validated data:', validatedData);
+    
     const result = await gameController.startGame(validatedData);
     console.log('Game started successfully');
-    res.json(result);
+    return res.json(result);
   } catch (error) {
     console.error('Error in /game/start route:', error);
     if (error instanceof Error) {
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
     }
-    next(error);
+    return next(error);
+
   }
 });
 
@@ -29,9 +32,9 @@ router.post('/next-scene', async (req, res, next) => {
   try {
     const validatedData = validateNextSceneRequest(req.body);
     const result = await gameController.getNextScene(validatedData);
-    res.json(result);
+    return res.json(result);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -44,9 +47,9 @@ router.get('/get-character/:id', async (req, res, next) => {
     }
     
     const result = await gameController.getCharacter(characterId);
-    res.json(result);
+    return res.json(result);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -59,9 +62,9 @@ router.get('/game-state/:characterId', async (req, res, next) => {
     }
     
     const result = await gameController.getGameState(characterId);
-    res.json(result);
+    return res.json(result);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
@@ -74,9 +77,9 @@ router.get('/decision-tree/:characterId', async (req, res, next) => {
     }
     
     const result = await gameController.getDecisionTree(characterId);
-    res.json(result);
+    return res.json(result);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 

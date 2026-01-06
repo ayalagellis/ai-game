@@ -1,8 +1,8 @@
 //import { Request, Response, NextFunction } from 'express';
-import { GameService } from '../services/gameService';
-import { CharacterService } from '../services/characterService';
-import { SceneService } from '../services/sceneService';
-import { GameStartRequest, NextSceneRequest, GameState } from '../../../shared/types';
+import { GameService } from '../services/gameService.js';
+import { CharacterService } from '../services/characterService.js';
+import { SceneService } from '../services/sceneService.js';
+import { GameStartRequest, NextSceneRequest, GameState } from '../../../shared/types.js';
 
 export class GameController {
   private gameService: GameService;

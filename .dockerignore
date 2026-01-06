@@ -1,0 +1,51 @@
+# Git
+.git
+.gitignore
+
+# Node modules (will reinstall in Docker)
+node_modules
+
+# Build artifacts (will rebuild in Docker)
+dist
+*/dist
+build
+*/build
+
+# Development files
+.vscode
+.idea
+*.log
+npm-debug.log*
+
+# Environment files (IMPORTANT - contains secrets!)
+.env
+.env.*
+*.env
+server/.env
+
+# Terraform
+infrastructure/
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Docker
+docker-compose.yml
+Docker/
+Dockerfile
+*.Dockerfile
+
+# Documentation
+README.md
+*.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+*.test.ts
+*.test.js
+__tests__/

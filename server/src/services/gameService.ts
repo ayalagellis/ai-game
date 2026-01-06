@@ -1,17 +1,15 @@
-import { AIService } from './aiService';
-import { MCPClient } from './mcpClient';
-import { CharacterService } from './characterService';
-import { SceneService } from './sceneService';
+import { AIService } from './aiService.js';
+import { MCPClient } from './mcpClient.js';
+import { CharacterService } from './characterService.js';
+import { SceneService } from './sceneService.js';
 import { 
   Character, 
   Scene, 
   AIResponse, 
-  GameStartRequest, 
-  NextSceneRequest,
   WorldFlag,
   EndingType
-} from '../../../shared/types';
-import { logger } from '../utils/logger';
+} from '../../../shared/types.js';
+import { logger } from '../utils/logger.js';
 
 export class GameService {
   private aiService: AIService;

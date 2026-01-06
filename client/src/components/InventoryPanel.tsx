@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Character } from '@shared/types';
-import { X, Package, Sword, Shield, Zap, Star } from 'lucide-react';
+import { X, Package, Sword, Shield, Zap } from 'lucide-react';
 
 interface InventoryPanelProps {
   character: Character;

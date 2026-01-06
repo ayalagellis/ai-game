@@ -1,17 +1,17 @@
 // IMPORTANT: Load environment variables FIRST before any other imports
-import './config/env';
+import "./config/env.js";
 
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { gameRoutes } from './routes/gameRoutes';
-import { errorHandler } from './utils/errorHandler';
-import { logger } from './utils/logger';
-import { DatabaseService } from './db/databaseService';
-import { mcpRouter } from './mcp/mcp-server';  // Import MCP router
+import { gameRoutes } from './routes/gameRoutes.js';
+import { errorHandler } from './utils/errorHandler.js';
+import { logger } from './utils/logger.js';
+import { DatabaseService } from './db/databaseService.js';
+import { mcpRouter } from './mcp/mcp-server.js';
 
 const app = express();
-const PORT = process.env['PORT'] || 3001;
+const PORT = process.env['PORT'] || 3000;
 
 // Middleware
 app.use(helmet());
@@ -42,7 +42,8 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: '1.0.0',
+    database: process.env['DISABLE_DB'] === 'true' ? 'disabled' : 'enabled'
   });
 });
 
@@ -60,8 +61,13 @@ app.use(errorHandler);
 // Initialize database and start server
 async function startServer() {
   try {
-    // Initialize database tables if DATABASE_URL is set
-    if (process.env['DATABASE_URL']) {
+    // Check if database should be disabled
+    const dbDisabled = process.env['DISABLE_DB'] === 'true';
+    
+    if (dbDisabled) {
+      logger.warn('Database is DISABLED via DISABLE_DB flag - running without database');
+    } else if (process.env['DATABASE_URL']) {
+      // Initialize database tables only if DATABASE_URL is set AND database is not disabled
       const dbService = new DatabaseService();
       await dbService.initialize();
       logger.info('Database initialized successfully');
@@ -74,6 +80,7 @@ async function startServer() {
       logger.info(`Server running on port ${PORT}`);
       logger.info(`MCP Server available at http://localhost:${PORT}/mcp`);
       logger.info(`Environment: ${process.env['NODE_ENV']}`);
+      logger.info(`Database: ${dbDisabled ? 'DISABLED' : 'enabled'}`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

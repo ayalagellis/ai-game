@@ -1,6 +1,5 @@
 import { Pool } from 'pg';
-import { CharacterService } from '../services/characterService';
-import { SceneService } from '../services/sceneService';
+import { CharacterService } from '../services/characterService.js';
 
 async function seed() {
   const db = new Pool({
@@ -9,7 +8,6 @@ async function seed() {
   });
 
   const characterService = new CharacterService();
-  const sceneService = new SceneService();
 
   try {
     console.log('Starting database seeding...');

@@ -88,13 +88,13 @@ npm run dev
 ```env
 DATABASE_URL=postgresql://username:password@localhost:5432/dynamic_storylines
 GEMINI_API_KEY=your_gemini_api_key_here
-PORT=3001
+PORT=3000
 NODE_ENV=development
 ```
 
 **Client (.env):**
 ```env
-VITE_API_BASE_URL=http://localhost:3001/api
+VITE_API_BASE_URL=http://localhost:3000/api
 VITE_ENABLE_AUDIO=true
 VITE_ENABLE_PARTICLES=true
 VITE_ENABLE_ANIMATIONS=true
@@ -135,7 +135,7 @@ The game is designed to work with free asset packs. Users can add:
 
 ## Development
 
-- Backend runs on `http://localhost:3001`
+- Backend runs on `http://localhost:3000`
 - Frontend runs on `http://localhost:5173`
 - Database connection configured via environment variables
 
@@ -176,7 +176,6 @@ dynamic-storylines/
 - **Ending Generation**: AI determines appropriate story conclusions
 
 ### Persistent State Management
-- **MCP Integration**: Model Context Protocol for advanced state management
 - **Character Progression**: Stats, inventory, and experience tracking
 - **World Flags**: Persistent world state and event tracking
 - **Scene History**: Complete record of player's journey
@@ -222,24 +221,3 @@ The game is designed to work with free asset packs. Users can add:
 - **Music**: Background music tracks
 - **SFX**: Sound effects for actions
 
-### Particle Effects
-- **Configurations**: Particle effect settings (`client/src/assets/particles/`)
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Gemini
-- Model Context Protocol for state management
-- React and TypeScript communities
-- All the open-source libraries used in this project

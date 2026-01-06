@@ -1,4 +1,4 @@
-import { DatabaseService } from './databaseService';
+import { DatabaseService } from './databaseService.js';
 
 async function migrate() {
   const db = new DatabaseService();
