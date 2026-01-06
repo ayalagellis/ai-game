@@ -1,0 +1,65 @@
+name: Deploy to ECS
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        app: [backend, frontend]
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        run: |
+          if [ "${{ matrix.app }}" = "backend" ]; then
+            docker build -f docker/server.Dockerfile -t ${{ vars.ECR_BACKEND_REPO }}:latest .
+            docker tag ${{ vars.ECR_BACKEND_REPO }}:latest \
+              $AWS_ACCOUNT_ID.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_BACKEND_REPO }}:latest
+            docker push $AWS_ACCOUNT_ID.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_BACKEND_REPO }}:latest
+          else
+            docker build -f docker/client.Dockerfile -t ${{ vars.ECR_FRONTEND_REPO }}:latest .
+            docker tag ${{ vars.ECR_FRONTEND_REPO }}:latest \
+              $AWS_ACCOUNT_ID.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_FRONTEND_REPO }}:latest
+            docker push $AWS_ACCOUNT_ID.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_FRONTEND_REPO }}:latest
+          fi
+        env:
+          AWS_ACCOUNT_ID: 557807210010
+
+      - name: Update ECS service
+        run: |
+          if [ "${{ matrix.app }}" = "backend" ]; then
+            aws ecs update-service \
+              --cluster ${{ vars.ECS_CLUSTER }} \
+              --service ${{ vars.ECS_BACKEND_SERVICE }} \
+              --force-new-deployment
+          else
+            aws ecs update-service \
+              --cluster ${{ vars.ECS_CLUSTER }} \
+              --service ${{ vars.ECS_FRONTEND_SERVICE }} \
+              --force-new-deployment
+          fi
+
+      - name: Notify Slack
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"🚀 Deployment ${STATUS} for ${{ matrix.app }}\"}" \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
