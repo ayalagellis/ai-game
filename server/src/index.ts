@@ -58,6 +58,8 @@ app.use('*', (req, res) => {
 // Error handling
 app.use(errorHandler);
 
+let server: any = null;
+
 // Initialize database and start server
 async function startServer() {
   try {
@@ -76,7 +78,7 @@ async function startServer() {
     }
     
     // Start server
-    app.listen(PORT, () => {
+    server = app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
       logger.info(`MCP Server available at http://localhost:${PORT}/mcp`);
       logger.info(`Environment: ${process.env['NODE_ENV']}`);
@@ -89,5 +91,39 @@ async function startServer() {
 }
 
 startServer();
+
+// Graceful shutdown handler for ECS deployments
+process.on('SIGTERM', async () => {
+  logger.info('🛑 SIGTERM received - starting graceful shutdown...');
+  
+  if (server) {
+    // Stop accepting new connections
+    server.close(() => {
+      logger.info('✅ Server closed - all connections finished');
+      process.exit(0);
+    });
+    
+    // Force shutdown after 30 seconds if still running
+    setTimeout(() => {
+      logger.error('⚠️ Forced shutdown after timeout');
+      process.exit(1);
+    }, 30000);
+  } else {
+    process.exit(0);
+  }
+});
+
+// Also handle SIGINT for local development (Ctrl+C)
+process.on('SIGINT', async () => {
+  logger.info('🛑 SIGINT received - shutting down...');
+  if (server) {
+    server.close(() => {
+      logger.info('✅ Server closed');
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
+  }
+});
 
 export default app;

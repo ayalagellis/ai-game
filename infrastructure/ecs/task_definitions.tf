@@ -10,9 +10,10 @@ resource "aws_ecs_task_definition" "backend" {
 
   container_definitions = jsonencode([
     {
-      name      = "backend"
-      image     = "557807210010.dkr.ecr.us-east-1.amazonaws.com/myapp-backend:latest"
-      essential = true
+      name        = "backend"
+      image       = "557807210010.dkr.ecr.us-east-1.amazonaws.com/myapp-backend:latest"
+      essential   = true
+      stopTimeout = 30
       portMappings = [
         { containerPort = 3000, hostPort = 3000, protocol = "tcp" }
       ]
@@ -30,7 +31,7 @@ resource "aws_ecs_task_definition" "backend" {
           valueFrom = "arn:aws:ssm:us-east-1:557807210010:parameter/ai-game/slack-webhook"
         },
         {
-          name      = "MCP_SERVER_URL" 
+          name      = "MCP_SERVER_URL"
           valueFrom = "arn:aws:ssm:us-east-1:557807210010:parameter/ai-game/mcp-server-url"
         }
       ]
