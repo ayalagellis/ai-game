@@ -6,6 +6,18 @@ import {
   NextSceneRequest
 } from '@shared/types';
 
+// Detects if running on Render vs AWS and uses appropriate API URL
+const getApiBaseUrl = () => {
+  // If on Render, use full backend URL
+  if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
+    return 'https://ai-game-glbo.onrender.com';
+  }
+  // Otherwise use relative path (works on AWS with ALB routing or local dev)
+  return '';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
 interface GameStore {
   // State
   gameState: GameState | null;
@@ -80,7 +92,7 @@ export const useGameStore = create<GameStore>()(
             characterBackground: String(request.characterBackground)
           };
 
-          const response = await fetch('/api/game/start', {
+          const response = await fetch(`${API_BASE_URL}/api/game/start`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -129,7 +141,7 @@ export const useGameStore = create<GameStore>()(
             currentSceneId: gameState.currentScene.id
           };
           
-          const response = await fetch('/api/next-scene', {
+          const response = await fetch(`${API_BASE_URL}/api/next-scene`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -160,7 +172,7 @@ export const useGameStore = create<GameStore>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch(`/api/game-state/${characterId}`);
+          const response = await fetch(`${API_BASE_URL}/api/game-state/${characterId}`);
           
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
