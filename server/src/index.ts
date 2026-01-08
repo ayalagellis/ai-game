@@ -15,27 +15,10 @@ const PORT = process.env['PORT'] || 3000;
 
 // Middleware
 app.use(helmet());
-
-// Parse multiple origins from environment variable (comma-separated)
-const allowedOrigins = process.env['CORS_ORIGIN'] 
-  ? process.env['CORS_ORIGIN'].split(',').map(origin => origin.trim())
-  : ['http://localhost:5173'];
-
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, testing tools, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in the whitelist
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true,
   credentials: true
 }));
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -108,39 +91,5 @@ async function startServer() {
 }
 
 startServer();
-
-// Graceful shutdown handler for ECS deployments
-process.on('SIGTERM', async () => {
-  logger.info('🛑 SIGTERM received - starting graceful shutdown...');
-  
-  if (server) {
-    // Stop accepting new connections
-    server.close(() => {
-      logger.info('✅ Server closed - all connections finished');
-      process.exit(0);
-    });
-    
-    // Force shutdown after 30 seconds if still running
-    setTimeout(() => {
-      logger.error('⚠️ Forced shutdown after timeout');
-      process.exit(1);
-    }, 30000);
-  } else {
-    process.exit(0);
-  }
-});
-
-// Also handle SIGINT for local development (Ctrl+C)
-process.on('SIGINT', async () => {
-  logger.info('🛑 SIGINT received - shutting down...');
-  if (server) {
-    server.close(() => {
-      logger.info('✅ Server closed');
-      process.exit(0);
-    });
-  } else {
-    process.exit(0);
-  }
-});
 
 export default app;
