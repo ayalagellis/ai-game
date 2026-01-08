@@ -8,14 +8,15 @@ import {
 
 // Detects if running on Render vs AWS and uses appropriate API URL
 const getApiBaseUrl = () => {
-  // If on Render, use full backend URL
-  if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
+  // If on Render subdomain, use full backend URL
+  if (typeof window !== 'undefined' && 
+      (window.location.hostname.includes('onrender.com') || 
+       window.location.hostname.includes('render.interactiveplot.online'))) {
     return 'https://ai-game-glbo.onrender.com';
   }
   // Otherwise use relative path (works on AWS with ALB routing or local dev)
   return '';
 };
-
 const API_BASE_URL = getApiBaseUrl();
 
 interface GameStore {
