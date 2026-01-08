@@ -15,10 +15,27 @@ const PORT = process.env['PORT'] || 3000;
 
 // Middleware
 app.use(helmet());
+
+// Parse multiple origins from environment variable (comma-separated)
+const allowedOrigins = process.env['CORS_ORIGIN'] 
+  ? process.env['CORS_ORIGIN'].split(',').map(origin => origin.trim())
+  : ['http://localhost:5173'];
+
 app.use(cors({
-  origin: process.env['CORS_ORIGIN'] || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, testing tools, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in the whitelist
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
