@@ -1,223 +1,401 @@
-# Dynamic Storylines
+# 🎮 Dynamic Storylines – AI-Powered Interactive Story Game
 
-A full-stack interactive storytelling game with AI-driven dynamic storylines. Features Gemini powered narrative generation, MCP integration for persistent state management, and a modern React frontend with visual effects.
+A **full-stack interactive storytelling game** powered by **Gemini AI**, deployed using **production-grade AWS infrastructure**.
 
-## Features
+This project demonstrates **end-to-end system design** — from AI-powered narrative generation and stateful backend logic to containerized deployment using **Terraform, ECS Fargate, and GitHub Actions**.
 
-- **AI-Driven Storytelling**: Gemini generates dynamic, branching narratives based on player choices
-- **Persistent State Management**: MCP tools handle character stats, inventory, and world state
-- **Modern UI**: React 18 with Framer Motion animations and particle effects
-- **Audio Integration**: Ambient sounds and audio feedback with Howler.js
-- **Decision Tree Visualization**: React Flow powered decision tree display
-- **Character Progression**: Stats tracking, inventory management, and character development
+---
 
-## Tech Stack
+## 🌐 Live Access
 
-### Frontend
+- **Public Demo:** https://ai-game.onrender.com  
+- **Production Domain:** https://interactiveplot.online *(available on request)*
+
+---
+
+## 🎲 How the Game Works
+
+An **interactive narrative experience** where your choices shape a unique story across **20 scenes**.
+
+**Gameplay Flow:**
+
+1. **Opening Scene:** Gemini AI generates a dynamic starting scenario
+2. **Player Decisions:** Choose from 2-4 options at each scene
+3. **Story Progression:** Each choice advances the narrative (up to 20 scenes total)
+4. **AI-Driven Adaptation:** An intelligent agent tracks your decisions, character stats, inventory, and world events
+5. **Branching Paths:** Your choices create consequences that affect future scenes
+6. **Unique Endings:** After 20 scenes, your accumulated decisions determine the outcome
+
+**The AI Agent Architecture:**
+
+Unlike simple prompt-based generation, this uses a **stateful AI agent** that maintains:
+- Complete scene history for narrative coherence
+- Player decision tracking
+- Character attributes (health, inventory, relationships)
+- World state flags (events triggered, locations discovered)
+- Consequence logic that creates meaningful, lasting impacts
+
+Each scene generation includes full context, enabling the AI to create coherent, branching narratives where choices truly matter.
+
+---
+
+## 🖼️ Game Screenshot
+
+**Main gameplay interface**
+
+![Game Screenshot - Placeholder](./docs/images/game-screenshot.png)
+*Player navigating through an AI-generated scene with decision options*
+
+---
+
+## 🏗️ Architecture Overview
+
+### AWS Infrastructure Diagram
+
+![AWS Architecture](./docs/images/aws-infrastructure-diagram.png)
+*Complete AWS architecture showing VPC with multi-AZ deployment, ECS Fargate services for frontend/backend, RDS PostgreSQL in private subnets, Application Load Balancer with HTTPS termination, and secure secrets management via SSM Parameter Store*
+
+### Request Flow & Data Pipeline
+
+![Request Flow](./docs/images/request-flow-diagram.png)
+*End-to-end request flow: User → HTTPS (Route 53 + ACM) → ALB → ECS Services (React frontend + Node.js backend with Gemini AI) → RDS PostgreSQL for persistent game state*
+
+### Core Components
+
+- **VPC:** Multi-AZ setup with public/private subnet isolation
+- **ECS Fargate:** Serverless container orchestration for frontend and backend
+- **RDS PostgreSQL:** Managed database for game state and decision history
+- **Application Load Balancer:** Traffic distribution + HTTPS/TLS termination
+- **Route 53 + ACM:** Custom domain DNS and SSL/TLS certificates
+- **ECR:** Private Docker image registry
+- **SSM Parameter Store:** Secure secrets and configuration management
+- **S3 + DynamoDB:** Terraform state storage with locking for safe concurrent operations
+
+---
+
+## 🚀 Deployment Guide (AWS Production)
+
+### Prerequisites
+
+- AWS Account with appropriate permissions
+- AWS CLI configured (`aws configure`)
+- Terraform installed (v1.0+)
+- Docker installed
+- PostgreSQL client tools
+- Domain name (optional, for custom domain)
+
+---
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/ayalagellis/ai-game.git
+cd ai-game
+```
+
+---
+
+### Step 2: Store Application Secrets
+
+Store sensitive credentials in AWS SSM Parameter Store before deployment:
+
+```bash
+# Gemini API key (required for AI story generation)
+aws ssm put-parameter \
+  --name "/ai-game/gemini-api-key" \
+  --value "your-actual-gemini-api-key" \
+  --type "SecureString" \
+  --region us-east-1
+
+# Database password (required for RDS)
+aws ssm put-parameter \
+  --name "/ai-game/db-password" \
+  --value "YourSecurePassword123!" \
+  --type "SecureString" \
+  --region us-east-1
+```
+
+**⚠️ IMPORTANT:** 
+- Replace `"your-actual-gemini-api-key"` with your real Gemini API key
+- Use a strong database password (min 8 characters, mix of letters/numbers/symbols)
+- These secrets are injected into ECS tasks at runtime via SSM
+
+---
+
+### Step 3: Set Up AWS Infrastructure
+
+**Deploy infrastructure modules in order:**
+
+```bash
+# 1. Bootstrap (S3 backend for Terraform state)
+cd infrastructure/bootstrap
+terraform init
+terraform apply
+
+# 2. VPC and Networking
+cd ../vpc
+terraform init
+terraform apply
+
+# 3. RDS PostgreSQL Database
+cd ../rds
+terraform init
+terraform apply
+
+# 4. ECR Repositories
+cd ../ecr  
+terraform init
+terraform apply
+
+# 5. SSM Parameter Store (Secrets)
+cd ../ssm
+terraform init
+terraform apply
+
+# 6. ECS Cluster and Services (includes ALB)
+cd ../ecs
+terraform init
+terraform apply
+```
+
+---
+
+### Step 4: Build and Push Docker Images
+
+**Get your AWS credentials:**
+
+```bash
+# Get AWS Account ID
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+AWS_REGION="us-east-1"
+
+echo "AWS Account ID: $AWS_ACCOUNT_ID"
+```
+
+**Authenticate with ECR:**
+
+```bash
+aws ecr get-login-password --region $AWS_REGION | \
+  docker login --username AWS --password-stdin \
+  ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+```
+
+**Build Docker images:**
+
+```bash
+# Return to project root
+cd ../..
+
+# Build backend (Node.js + Express + Gemini AI)
+docker build -t ai-game-backend:latest -f Docker/backend.Dockerfile .
+
+# Build frontend (React + Nginx)
+docker build -t ai-game-frontend:latest -f Docker/frontend.Dockerfile .
+```
+
+**Tag and push to ECR:**
+
+```bash
+# Backend
+docker tag ai-game-backend:latest \
+  ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/ai-game-backend:latest
+  
+docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/ai-game-backend:latest
+
+# Frontend
+docker tag ai-game-frontend:latest \
+  ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/ai-game-frontend:latest
+  
+docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/ai-game-frontend:latest
+```
+
+---
+
+### Step 5: Initialize Database (If RDS Module is Configured)
+
+If your RDS module creates a database, run migrations:
+
+```bash
+# Get RDS endpoint from Terraform output
+cd infrastructure/rds
+RDS_ENDPOINT=$(terraform output -raw db_endpoint 2>/dev/null)
+
+# If RDS is deployed, run migrations
+if [ ! -z "$RDS_ENDPOINT" ]; then
+  cd ../../server
+  npm install
+  
+  # Update DATABASE_URL with RDS endpoint
+  export DATABASE_URL="postgresql://admin:${DB_PASSWORD}@${RDS_ENDPOINT}:5432/dynamic_storylines"
+  
+  npm run db:migrate
+else
+  echo "⚠️  RDS module not deployed or has no output. Skipping database setup."
+```
+
+---
+
+### Step 6: Deploy to ECS and Access Application
+
+**Update ECS services with new images:**
+
+```bash
+cd infrastructure/ecs
+
+# Force new deployment (pulls latest images from ECR)
+aws ecs update-service \
+  --cluster ai-game-cluster \
+  --service backend-service \
+  --force-new-deployment \
+  --region us-east-1
+
+aws ecs update-service \
+  --cluster ai-game-cluster \
+  --service frontend-service \
+  --force-new-deployment \
+  --region us-east-1
+```
+
+**Get the Application Load Balancer URL:**
+
+```bash
+ALB_DNS=$(terraform output -raw alb_dns_name)
+echo "Application URL: https://${ALB_DNS}"
+```
+
+**Access your application:**
+
+```
+https://<ALB-DNS-NAME>
+```
+
+---
+
+### Step 7: Custom Domain Setup (Optional)
+
+If using a custom domain like `interactiveplot.online`:
+
+1. **Create Route 53 Hosted Zone** (if not exists)
+2. **Update domain nameservers** at your registrar (e.g., GoDaddy)
+3. **Request ACM Certificate:**
+   ```bash
+   aws acm request-certificate \
+     --domain-name interactiveplot.online \
+     --validation-method DNS \
+     --region us-east-1
+   ```
+4. **Add DNS validation records** to Route 53
+5. **Update ALB listener** to use ACM certificate
+6. **Create Route 53 A record** (Alias) pointing to ALB
+
+---
+
+## 🔁 CI/CD Pipeline (GitHub Actions)
+
+Automated deployment on every push to `main` branch.
+
+**CI/CD Pipeline Visualization**
+
+![GitHub Actions Pipeline](./docs/images/github-actions-pipeline.png)
+*Automated workflow: code push → build Docker images → push to ECR → deploy to ECS with zero downtime*
+
+### Required GitHub Secrets
+
+Configure in `Settings > Secrets and variables > Actions`:
+
+**Secrets:**
+- `AWS_ACCESS_KEY_ID` - IAM access key with ECR and ECS permissions
+- `AWS_SECRET_ACCESS_KEY` - IAM secret key
+- `AWS_REGION` - Deployment region (e.g., `us-east-1`)
+
+**Variables:**
+- `ECR_BACKEND_REPO` - Backend ECR repository URI
+- `ECR_FRONTEND_REPO` - Frontend ECR repository URI
+- `ECS_CLUSTER` - ECS cluster name
+- `ECS_BACKEND_SERVICE` - Backend ECS service name
+- `ECS_FRONTEND_SERVICE` - Frontend ECS service name
+
+### Pipeline Workflow
+
+```yaml
+Trigger: Push to main
+  ↓
+Build Docker images (backend + frontend)
+  ↓
+Run tests
+  ↓
+Push images to ECR with :latest and :commit-sha tags
+  ↓
+Update ECS task definitions
+  ↓
+Deploy to ECS (rolling update, zero downtime)
+  ↓
+Send Slack notification with deployment status
+```
+
+---
+
+## 📡 API Endpoints
+
+```
+POST   /api/game/start              # Start new game with character
+POST   /api/next-scene              # Progress to next scene with player choice
+GET    /api/game-state/:characterId # Retrieve current game state
+GET    /api/get-character/:id       # Get character details
+GET    /api/decision-tree/:characterId # Get visualization data
+GET    /api/health                  # Health check
+```
+
+---
+
+## 🛠️ Tech Stack
+
+**Frontend:**
 - React 18 + TypeScript
-- Vite for build tooling
-- Zustand for state management
-- TailwindCSS for styling
-- Framer Motion for animations
-- tsparticles for visual effects
-- React Flow for decision trees
-- Howler.js for audio
-- Lucide React for icons
+- Zustand (state management)
+- TailwindCSS (styling)
 
-### Backend
+**Backend:**
 - Node.js + Express + TypeScript
-- Gemini
-- MCP (Model Context Protocol) SDK
-- PostgreSQL database
+- Gemini AI (Google)
+- PostgreSQL
 
-## Getting Started
+**Infrastructure:**
+- AWS ECS Fargate (container orchestration)
+- AWS RDS PostgreSQL (database)
+- AWS ALB (load balancing + HTTPS)
+- AWS ECR (container registry)
+- AWS Route 53 (DNS)
+- AWS Certificate Manager (SSL/TLS)
+- AWS SSM Parameter Store (secrets)
+- Terraform (Infrastructure as Code)
+- GitHub Actions (CI/CD)
+- Docker (containerization)
 
-### Quick Setup (Recommended)
+---
 
-**Windows:**
-```bash
-setup.bat
-```
+## 🔒 Security Features
 
-**Linux/macOS:**
-```bash
-chmod +x setup.sh
-./setup.sh
-```
+- **HTTPS Enforced:** TLS 1.2+ encryption for all traffic
+- **Secrets Management:** AWS SSM Parameter Store (no hardcoded credentials)
+- **Network Isolation:** RDS in private subnets, no public internet access
+- **Security Groups:** Least-privilege firewall rules
+- **IAM Roles:** Task-level permissions with minimal scope
+- **Encryption at Rest:** RDS storage encryption enabled
+- **Container Security:** Regular image scanning, non-root users
 
-### Manual Setup
+---
 
-1. **Prerequisites:**
-   - Node.js 18+ 
-   - npm
-   - PostgreSQL 12+
 
-2. **Install dependencies:**
-```bash
-npm run install:all
-```
+## 🧪 Why This Project Matters
 
-3. **Set up environment variables:**
-```bash
-# Copy and configure environment files
-cp server/env.example server/.env
-cp client/env.example client/.env
-```
+This project demonstrates:
 
-4. **Configure environment variables:**
-   - Edit `server/.env` with your database credentials and Gemini API key
-   - Edit `client/.env` with your API configuration
+✅ **AI Agent Architecture** - Stateful reasoning with memory, not just prompt completion  
+✅ **Production Infrastructure** - Real AWS deployment, not toy localhost setup  
+✅ **DevOps Best Practices** - IaC, CI/CD, containerization, secrets management  
+✅ **Full-Stack Development** - Modern React, Node.js, PostgreSQL, TypeScript  
+✅ **Security-First Design** - HTTPS, IAM, network isolation, encrypted storage  
+✅ **Scalability** - Auto-scaling ECS tasks, multi-AZ RDS, load balancing  
 
-5. **Set up the database:**
-```bash
-# Create database
-createdb dynamic_storylines
-
-# Run database migrations
-cd server && npm run db:migrate
-```
-
-6. **Start development servers:**
-```bash
-npm run dev
-```
-
-### Environment Variables
-
-**Server (.env):**
-```env
-DATABASE_URL=postgresql://username:password@localhost:5432/dynamic_storylines
-GEMINI_API_KEY=your_gemini_api_key_here
-PORT=3000
-NODE_ENV=development
-```
-
-**Client (.env):**
-```env
-VITE_API_BASE_URL=http://localhost:3000/api
-VITE_ENABLE_AUDIO=true
-VITE_ENABLE_PARTICLES=true
-VITE_ENABLE_ANIMATIONS=true
-```
-
-## Game Flow
-
-1. **Character Creation**: Player creates character with name, class, and background
-2. **AI Scene Generation**: Gemini generates dynamic scenes based on character and choices
-3. **Visual Rendering**: Frontend maps visual assets, plays audio, and shows particles
-4. **Player Choice**: Player selects from AI-generated choices
-5. **State Update**: MCP tools update character stats and world state
-6. **Repeat**: Process continues until ending or maximum scenes reached
-7. **Ending Screen**: Display summary and decision tree visualization
-
-## AI Agent Behavior
-
-The AI agent tracks:
-- Character stats and inventory
-- World flags and events
-- Scene history and context
-- Player choice consequences
-- Random events and branching narratives
-
-## Asset Integration
-
-The game is designed to work with free asset packs. Users can add:
-- Background images to `client/src/assets/backgrounds/`
-- Audio files to `client/src/assets/sounds/`
-- Particle configurations to `client/src/assets/particles/`
-- Icons to `client/src/assets/icons/`
-
-## API Endpoints
-
-- `POST /api/game/start` - Start new game with character
-- `POST /api/next-scene` - Get next scene based on choice
-- `GET /api/get-character/:id` - Get character details
-
-## Development
-
-- Backend runs on `http://localhost:3000`
-- Frontend runs on `http://localhost:5173`
-- Database connection configured via environment variables
-
-## Project Structure
-
-```
-dynamic-storylines/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── store/          # Zustand state management
-│   │   ├── api/            # API client
-│   │   ├── assets/         # Game assets (images, sounds, etc.)
-│   │   └── utils/          # Utility functions
-│   └── package.json
-├── server/                 # Node.js backend
-│   ├── src/
-│   │   ├── controllers/   # API controllers
-│   │   ├── services/      # Business logic (AI, MCP, etc.)
-│   │   ├── routes/        # API routes
-│   │   ├── db/            # Database setup
-│   │   └── utils/         # Utility functions
-│   └── package.json
-├── shared/                 # Shared types and schemas
-│   ├── types.ts           # TypeScript interfaces
-│   └── schemas.ts         # Zod validation schemas
-├── setup.sh               # Linux/macOS setup script
-├── setup.bat              # Windows setup script
-└── README.md
-```
-
-## Key Features
-
-### AI-Driven Storytelling
-- **Gemini Integration**: Advanced AI generates dynamic, branching narratives
-- **Context Awareness**: AI tracks character stats, inventory, and world state
-- **Consequence System**: Player choices have meaningful impacts on the story
-- **Ending Generation**: AI determines appropriate story conclusions
-
-### Persistent State Management
-- **Character Progression**: Stats, inventory, and experience tracking
-- **World Flags**: Persistent world state and event tracking
-- **Scene History**: Complete record of player's journey
-
-### Modern UI/UX
-- **Responsive Design**: Works on desktop and mobile devices
-- **Smooth Animations**: Framer Motion for fluid transitions
-- **Particle Effects**: Visual atmosphere with tsparticles
-- **Audio Integration**: Ambient sounds and music with Howler.js
-- **Decision Tree**: Visual representation of player choices
-
-### Technical Architecture
-- **Type Safety**: Full TypeScript implementation
-- **State Management**: Zustand for efficient state handling
-- **API Design**: RESTful API with proper error handling
-- **Database**: PostgreSQL with proper schema design
-- **Validation**: Zod schemas for data validation
-
-## API Endpoints
-
-### Game Management
-- `POST /api/game/start` - Start new game with character
-- `POST /api/next-scene` - Get next scene based on choice
-- `GET /api/game-state/:characterId` - Get full game state
-- `GET /api/get-character/:id` - Get character details
-
-### Decision Tree
-- `GET /api/decision-tree/:characterId` - Get decision tree visualization
-
-### Health Check
-- `GET /api/health` - Server health status
-
-## Asset Integration
-
-The game is designed to work with free asset packs. Users can add:
-
-### Visual Assets
-- **Backgrounds**: Scene backgrounds (`client/src/assets/backgrounds/`)
-- **Icons**: UI icons and character sprites (`client/src/assets/icons/`)
-
-### Audio Assets
-- **Ambient Sounds**: Environmental audio (`client/src/assets/sounds/`)
-- **Music**: Background music tracks
-- **SFX**: Sound effects for actions
-
+---
