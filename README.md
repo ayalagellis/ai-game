@@ -44,7 +44,7 @@ Each scene generation includes full context, enabling the AI to create coherent,
 
 **Main gameplay interface**
 
-![Game Screenshot - Placeholder](./images/game - picture.jpg)
+![Game Screenshot - Placeholder](./images/gamePicture.jpg)
 
 *Player navigating through an AI-generated scene with decision options*
 
@@ -54,7 +54,7 @@ Each scene generation includes full context, enabling the AI to create coherent,
 
 ### AWS Infrastructure Diagram
 
-![AWS Architecture](./images/AWS architecture.jpg)
+![AWS Architecture](./images/awsArchitecture.jpg)
 
 *Complete AWS architecture showing VPC with multi-AZ deployment, ECS Fargate services for frontend/backend, RDS PostgreSQL in private subnets, Application Load Balancer with HTTPS termination, and secure secrets management via SSM Parameter Store*
 
@@ -260,11 +260,6 @@ If using a custom domain like `interactiveplot.online`:
 ## 🔁 CI/CD Pipeline (GitHub Actions)
 
 Automated deployment on every push to `main` branch.
-
-**CI/CD Pipeline Visualization**
-
-![GitHub Actions Pipeline](./images/github actions.png)
-*Automated workflow: code push → build Docker images → push to ECR → deploy to ECS with zero downtime*
 
 ### Required GitHub Secrets
 
