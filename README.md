@@ -8,7 +8,8 @@ This project demonstrates **end-to-end system design** — from AI-powered narra
 
 ## 🌐 Live Access
 
-- **Public Demo:** https://ai-game.onrender.com  
+- **Public Demo:** https://www.render.interactiveplot.online  
+(Render-hosted preview; AWS ECS is the production-grade reference architecture)
 - **Production Domain:** https://interactiveplot.online *(available on request)*
 
 ---
@@ -43,7 +44,8 @@ Each scene generation includes full context, enabling the AI to create coherent,
 
 **Main gameplay interface**
 
-![Game Screenshot - Placeholder](./docs/images/game-screenshot.png)
+![Game Screenshot - Placeholder](./images/game - picture.jpg)
+
 *Player navigating through an AI-generated scene with decision options*
 
 ---
@@ -52,20 +54,21 @@ Each scene generation includes full context, enabling the AI to create coherent,
 
 ### AWS Infrastructure Diagram
 
-![AWS Architecture](./docs/images/aws-infrastructure-diagram.png)
+![AWS Architecture](./images/AWS architecture.jpg)
+
 *Complete AWS architecture showing VPC with multi-AZ deployment, ECS Fargate services for frontend/backend, RDS PostgreSQL in private subnets, Application Load Balancer with HTTPS termination, and secure secrets management via SSM Parameter Store*
-
-### Request Flow & Data Pipeline
-
-![Request Flow](./docs/images/request-flow-diagram.png)
-*End-to-end request flow: User → HTTPS (Route 53 + ACM) → ALB → ECS Services (React frontend + Node.js backend with Gemini AI) → RDS PostgreSQL for persistent game state*
 
 ### Core Components
 
 - **VPC:** Multi-AZ setup with public/private subnet isolation
+  - **Public Subnets (2 AZs):** ALB + ECS Fargate tasks
+  - **Private Subnets (2 AZs):** RDS PostgreSQL (no internet access)
 - **ECS Fargate:** Serverless container orchestration for frontend and backend
+  - **Cost Optimization:** Tasks in public subnets (no NAT Gateway required)
+  - **Security:** Inbound traffic restricted to ALB via security groups
+  - **Outbound Access:** Direct internet connectivity for Gemini API calls
 - **RDS PostgreSQL:** Managed database for game state and decision history
-- **Application Load Balancer:** Traffic distribution + HTTPS/TLS termination
+- **Application Load Balancer:** Traffic distribution
 - **Route 53 + ACM:** Custom domain DNS and SSL/TLS certificates
 - **ECR:** Private Docker image registry
 - **SSM Parameter Store:** Secure secrets and configuration management
@@ -84,16 +87,12 @@ Each scene generation includes full context, enabling the AI to create coherent,
 - PostgreSQL client tools
 - Domain name (optional, for custom domain)
 
----
-
 ### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/ayalagellis/ai-game.git
 cd ai-game
 ```
-
----
 
 ### Step 2: Store Application Secrets
 
@@ -120,8 +119,6 @@ aws ssm put-parameter \
 - Use a strong database password (min 8 characters, mix of letters/numbers/symbols)
 - These secrets are injected into ECS tasks at runtime via SSM
 
----
-
 ### Step 3: Set Up AWS Infrastructure
 
 **Deploy infrastructure modules in order:**
@@ -137,18 +134,18 @@ cd ../vpc
 terraform init
 terraform apply
 
-# 3. RDS PostgreSQL Database
+# 3. SSM Parameter Store (Secrets)
+cd ../ssm
+terraform init
+terraform apply
+
+# 4. RDS PostgreSQL Database
 cd ../rds
 terraform init
 terraform apply
 
-# 4. ECR Repositories
+# 5. ECR Repositories
 cd ../ecr  
-terraform init
-terraform apply
-
-# 5. SSM Parameter Store (Secrets)
-cd ../ssm
 terraform init
 terraform apply
 
@@ -157,8 +154,6 @@ cd ../ecs
 terraform init
 terraform apply
 ```
-
----
 
 ### Step 4: Build and Push Docker Images
 
@@ -186,11 +181,8 @@ aws ecr get-login-password --region $AWS_REGION | \
 # Return to project root
 cd ../..
 
-# Build backend (Node.js + Express + Gemini AI)
-docker build -t ai-game-backend:latest -f Docker/backend.Dockerfile .
-
-# Build frontend (React + Nginx)
-docker build -t ai-game-frontend:latest -f Docker/frontend.Dockerfile .
+# Build Docker image
+docker compose -f docker/docker-compose.yml build
 ```
 
 **Tag and push to ECR:**
@@ -209,33 +201,7 @@ docker tag ai-game-frontend:latest \
 docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/ai-game-frontend:latest
 ```
 
----
-
-### Step 5: Initialize Database (If RDS Module is Configured)
-
-If your RDS module creates a database, run migrations:
-
-```bash
-# Get RDS endpoint from Terraform output
-cd infrastructure/rds
-RDS_ENDPOINT=$(terraform output -raw db_endpoint 2>/dev/null)
-
-# If RDS is deployed, run migrations
-if [ ! -z "$RDS_ENDPOINT" ]; then
-  cd ../../server
-  npm install
-  
-  # Update DATABASE_URL with RDS endpoint
-  export DATABASE_URL="postgresql://admin:${DB_PASSWORD}@${RDS_ENDPOINT}:5432/dynamic_storylines"
-  
-  npm run db:migrate
-else
-  echo "⚠️  RDS module not deployed or has no output. Skipping database setup."
-```
-
----
-
-### Step 6: Deploy to ECS and Access Application
+### Step 5: Deploy to ECS (Optional)
 
 **Update ECS services with new images:**
 
@@ -256,11 +222,12 @@ aws ecs update-service \
   --region us-east-1
 ```
 
+### Step 6: Access Application
+
 **Get the Application Load Balancer URL:**
 
 ```bash
-ALB_DNS=$(terraform output -raw alb_dns_name)
-echo "Application URL: https://${ALB_DNS}"
+terraform output -raw alb_dns_name
 ```
 
 **Access your application:**
@@ -268,8 +235,6 @@ echo "Application URL: https://${ALB_DNS}"
 ```
 https://<ALB-DNS-NAME>
 ```
-
----
 
 ### Step 7: Custom Domain Setup (Optional)
 
@@ -288,6 +253,8 @@ If using a custom domain like `interactiveplot.online`:
 5. **Update ALB listener** to use ACM certificate
 6. **Create Route 53 A record** (Alias) pointing to ALB
 
+> ACM certificates must be created in the same region as the Application Load Balancer.
+
 ---
 
 ## 🔁 CI/CD Pipeline (GitHub Actions)
@@ -296,7 +263,7 @@ Automated deployment on every push to `main` branch.
 
 **CI/CD Pipeline Visualization**
 
-![GitHub Actions Pipeline](./docs/images/github-actions-pipeline.png)
+![GitHub Actions Pipeline](./images/github actions.png)
 *Automated workflow: code push → build Docker images → push to ECR → deploy to ECS with zero downtime*
 
 ### Required GitHub Secrets
@@ -384,8 +351,9 @@ GET    /api/health                  # Health check
 - **Encryption at Rest:** RDS storage encryption enabled
 - **Container Security:** Regular image scanning, non-root users
 
----
+**Trade-off Note:** ECS tasks run in public subnets to avoid NAT Gateway costs (suitable for portfolio projects) while maintaining security through security group rules.
 
+---
 
 ## 🧪 Why This Project Matters
 
@@ -396,6 +364,6 @@ This project demonstrates:
 ✅ **DevOps Best Practices** - IaC, CI/CD, containerization, secrets management  
 ✅ **Full-Stack Development** - Modern React, Node.js, PostgreSQL, TypeScript  
 ✅ **Security-First Design** - HTTPS, IAM, network isolation, encrypted storage  
-✅ **Scalability** - Auto-scaling ECS tasks, multi-AZ RDS, load balancing  
+✅ **Scalability** - Auto-scaling ECS tasks, multi-AZ RDS, load balancing
 
 ---
