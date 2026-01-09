@@ -56,7 +56,7 @@ Each scene generation includes full context, enabling the AI to create coherent,
 
 ![AWS Architecture](./images/awsArchitecture.jpg)
 
-*Complete AWS architecture showing VPC with multi-AZ deployment, ECS Fargate services for frontend/backend, RDS PostgreSQL in private subnets, Application Load Balancer with HTTPS termination, and secure secrets management via SSM Parameter Store*
+*Complete AWS architecture showing VPC with multi-AZ deployment, ECS Fargate services for frontend/backend, RDS PostgreSQL in private subnets, Application Load Balancer*
 
 ### Core Components
 
