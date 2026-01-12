@@ -61,5 +61,5 @@ jobs:
         run: |
           STATUS="${{ job.status }}"
           curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"🚀 - Deployment ${STATUS} for ${{ matrix.app }}\"}" \
+            --data "{\"text\":\"🚀 Deployment ${STATUS} for ${{ matrix.app }}\"}" \
             ${{ secrets.SLACK_WEBHOOK_URL }}
