@@ -1,225 +1,132 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { 
-  GameState, 
-  GameStartRequest, 
+import {
+  GameState,
+  GameStartRequest,
   NextSceneRequest
 } from '@shared/types';
-
-// Detects if running on Render vs AWS and uses appropriate API URL
-const getApiBaseUrl = () => {
-  // If on Render subdomain, use full backend URL
-  if (typeof window !== 'undefined' && 
-      (window.location.hostname.includes('onrender.com') || 
-       window.location.hostname.includes('render.interactiveplot.online'))) {
-    return 'https://ai-game-glbo.onrender.com';
-  }
-  // Otherwise use relative path (works on AWS with ALB routing or local dev)
-  return '';
-};
-const API_BASE_URL = getApiBaseUrl();
+import { gameAPI } from '../api/gameAPI';
 
 interface GameStore {
-  // State
   gameState: GameState | null;
   isLoading: boolean;
   error: string | null;
   currentView: 'character-creation' | 'game' | 'ending' | 'decision-tree';
-  
-  // Character Creation
+
   characterForm: {
     name: string;
     class: string;
     background: string;
   };
-  
-  // Audio
+
   audioEnabled: boolean;
-  currentAudio: any;
-  
-  // Visual Effects
   particlesEnabled: boolean;
   animationsEnabled: boolean;
-  
-  // Actions
+
   setCharacterForm: (form: Partial<GameStore['characterForm']>) => void;
   startGame: (request: GameStartRequest) => Promise<void>;
   makeChoice: (choiceIndex: number) => Promise<void>;
   loadGameState: (characterId: number) => Promise<void>;
   setCurrentView: (view: GameStore['currentView']) => void;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-  toggleAudio: () => void;
-  toggleParticles: () => void;
-  toggleAnimations: () => void;
   resetGame: () => void;
 }
 
 export const useGameStore = create<GameStore>()(
   devtools(
     (set, get) => ({
-      // Initial state
       gameState: null,
       isLoading: false,
       error: null,
       currentView: 'character-creation',
-      
+
       characterForm: {
         name: '',
         class: '',
-        background: ''
+        background: '',
       },
-      
+
       audioEnabled: true,
-      currentAudio: null,
       particlesEnabled: true,
       animationsEnabled: true,
-      
-      // Actions
-      setCharacterForm: (form) => {
+
+      setCharacterForm: (form) =>
         set((state) => ({
-          characterForm: { ...state.characterForm, ...form }
-        }));
-      },
-      
-      startGame: async (request: GameStartRequest) => {
+          characterForm: { ...state.characterForm, ...form },
+        })),
+
+      startGame: async (request) => {
         set({ isLoading: true, error: null });
-        
+
         try {
-          // Ensure request is a plain object with correct property types
-          const sanitizedRequest = {
-            characterName: String(request.characterName),
-            characterClass: String(request.characterClass),
-            characterBackground: String(request.characterBackground)
-          };
+          const data = await gameAPI.startGame(request);
 
-          const response = await fetch(`${API_BASE_URL}/api/game/start`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(sanitizedRequest),
-          });
-          
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.error?.message || errorData.message || `HTTP error! status: ${response.status}`;
-            throw new Error(errorMessage);
-          }
-          
-          const data = await response.json();
-
-          if (!data.gameState) {
-            throw new Error('Invalid response format: missing gameState');
-          }
-          
           set({
             gameState: data.gameState,
             isLoading: false,
-            currentView: 'game'
+            currentView: 'game',
           });
-        } catch (error) {
-          const errorMessage = error instanceof Error 
-            ? error.message 
-            : 'Failed to start game. Please ensure the server is running.';
-          
-          console.error('Start game error:', error);
+        } catch (err) {
           set({
-            error: errorMessage,
-            isLoading: false
+            error: err instanceof Error ? err.message : 'Failed to start game',
+            isLoading: false,
           });
         }
       },
-      
-      makeChoice: async (choiceIndex: number) => {
+
+      makeChoice: async (choiceIndex) => {
         const { gameState } = get();
-        if (!gameState) return;     
-        set({ isLoading: true, error: null });        
+        if (!gameState) return;
+
+        set({ isLoading: true, error: null });
+
         try {
           const request: NextSceneRequest = {
             characterId: gameState.character.id,
             choiceId: choiceIndex,
-            currentSceneId: gameState.currentScene.id
+            currentSceneId: gameState.currentScene.id,
           };
-          
-          const response = await fetch(`${API_BASE_URL}/api/next-scene`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(request),
-          });
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          
+
+          const data = await gameAPI.getNextScene(request);
+
           set({
             gameState: data.gameState,
             isLoading: false,
-            currentView: data.gameState.gameProgress.isGameOver ? 'ending' : 'game'
+            currentView: data.gameState.gameProgress.isGameOver
+              ? 'ending'
+              : 'game',
           });
-        } catch (error) {
+        } catch (err) {
           set({
-            error: error instanceof Error ? error.message : 'Failed to make choice',
-            isLoading: false
+            error: err instanceof Error ? err.message : 'Failed to make choice',
+            isLoading: false,
           });
         }
       },
-      
-      loadGameState: async (characterId: number) => {
+
+      loadGameState: async (characterId) => {
         set({ isLoading: true, error: null });
-        
+
         try {
-          const response = await fetch(`${API_BASE_URL}/api/game-state/${characterId}`);
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          
+          const data = await gameAPI.getGameState(characterId);
+
           set({
             gameState: data.gameState,
             isLoading: false,
-            currentView: data.gameState.gameProgress.isGameOver ? 'ending' : 'game'
+            currentView: data.gameState.gameProgress.isGameOver
+              ? 'ending'
+              : 'game',
           });
-        } catch (error) {
+        } catch (err) {
           set({
-            error: error instanceof Error ? error.message : 'Failed to load game state',
-            isLoading: false
+            error: err instanceof Error ? err.message : 'Failed to load game',
+            isLoading: false,
           });
         }
       },
-      
-      setCurrentView: (view) => {
-        set({ currentView: view });
-      },
-      
-      setLoading: (loading) => {
-        set({ isLoading: loading });
-      },
-      
-      setError: (error) => {
-        set({ error });
-      },
-      
-      toggleAudio: () => {
-        set((state) => ({ audioEnabled: !state.audioEnabled }));
-      },
-      
-      toggleParticles: () => {
-        set((state) => ({ particlesEnabled: !state.particlesEnabled }));
-      },
-      
-      toggleAnimations: () => {
-        set((state) => ({ animationsEnabled: !state.animationsEnabled }));
-      },
-      
-      resetGame: () => {
-        // Reset all state and explicitly set view to character creation
+
+      setCurrentView: (view) => set({ currentView: view }),
+
+      resetGame: () =>
         set({
           gameState: null,
           isLoading: false,
@@ -228,13 +135,10 @@ export const useGameStore = create<GameStore>()(
           characterForm: {
             name: '',
             class: '',
-            background: ''
-          }
-        });
-      }
+            background: '',
+          },
+        }),
     }),
-    {
-      name: 'game-store',
-    }
+    { name: 'game-store' }
   )
 );

@@ -2,7 +2,7 @@
   "name": "dynamic-storylines-server",
   "private": true,
   "version": "1.0.0",
-    "workspaces": [
+  "workspaces": [
     "server",
     "shared",
     "client"
@@ -39,6 +39,7 @@
     "@types/pg": "^8.15.6",
     "@types/serve-static": "^2.2.0",
     "@types/uuid": "^9.0.7",
+    "@vercel/node": "^5.6.3",
     "form-data": "^4.0.4",
     "nodemon": "^3.0.2",
     "pg-protocol": "^1.10.3",
