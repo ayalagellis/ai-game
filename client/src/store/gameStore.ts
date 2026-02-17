@@ -28,6 +28,7 @@ interface GameStore {
   makeChoice: (choiceIndex: number) => Promise<void>;
   loadGameState: (characterId: number) => Promise<void>;
   setCurrentView: (view: GameStore['currentView']) => void;
+  setError: (error: string | null) => void;
   resetGame: () => void;
 }
 
@@ -125,6 +126,8 @@ export const useGameStore = create<GameStore>()(
       },
 
       setCurrentView: (view) => set({ currentView: view }),
+
+      setError: (error) => set({ error }),
 
       resetGame: () =>
         set({
