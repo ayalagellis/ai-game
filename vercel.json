@@ -11,5 +11,8 @@
       "src": "/(.*)",
       "dest": "api/index.ts"
     }
-  ]
+  ],
+  "buildCommand": "npm run build -w client",
+  "outputDirectory": "client/dist"
+
 }
