@@ -4,14 +4,23 @@
     {
       "src": "api/index.ts",
       "use": "@vercel/node"
+    },
+    {
+      "src": "client/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "/api/index.ts"
+    },
+    {
       "src": "/(.*)",
-      "dest": "api/index.ts"
+      "dest": "/client/$1"
     }
-  ],
-  "buildCommand": "cd client && npm install && npm run build",
-  "outputDirectory": "client/dist"
+  ]
 }
