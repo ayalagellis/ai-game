@@ -8,11 +8,12 @@ import {
 import { gameAPI } from '../api/gameAPI';
 
 interface GameStore {
+  //state
   gameState: GameState | null;
   isLoading: boolean;
   error: string | null;
   currentView: 'character-creation' | 'game' | 'ending' | 'decision-tree';
-
+  //character creation 
   characterForm: {
     name: string;
     class: string;
@@ -29,6 +30,10 @@ interface GameStore {
   loadGameState: (characterId: number) => Promise<void>;
   setCurrentView: (view: GameStore['currentView']) => void;
   setError: (error: string | null) => void;
+  setLoading: (loading: boolean) => void;
+  toggleAudio: () => void;
+  toggleParticles: () => void;
+  toggleAnimations: () => void;
   resetGame: () => void;
 }
 
@@ -128,10 +133,27 @@ export const useGameStore = create<GameStore>()(
       setCurrentView: (view) => set({ currentView: view }),
 
       setError: (error) => set({ error }),
-
-      resetGame: () =>
+      
+      setLoading: (loading) => {
+        set({ isLoading: loading });
+      },
+      
+      toggleAudio: () => {
+        set((state) => ({ audioEnabled: !state.audioEnabled }));
+      },
+      
+      toggleParticles: () => {
+        set((state) => ({ particlesEnabled: !state.particlesEnabled }));
+      },
+      
+      toggleAnimations: () => {
+        set((state) => ({ animationsEnabled: !state.animationsEnabled }));
+      },
+      
+      resetGame: () => {
+        // Reset all state and explicitly set view to character creation
         set({
-          gameState: null,
+          gameState: null, 
           isLoading: false,
           error: null,
           currentView: 'character-creation',
@@ -140,7 +162,8 @@ export const useGameStore = create<GameStore>()(
             class: '',
             background: '',
           },
-        }),
+        });
+      },
     }),
     { name: 'game-store' }
   )
