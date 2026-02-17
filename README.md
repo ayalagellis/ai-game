@@ -9,7 +9,7 @@ This project demonstrates **end-to-end system design** — from AI-powered narra
 ## 🌐 Live Access
 
 - **Public Demo:** https://www.render.interactiveplot.online  
-(Render-hosted preview; AWS ECS is the production-grade reference architecture)
+(Vercel-hosted preview; AWS ECS is the production-grade reference architecture)
 - **Production Domain:** https://interactiveplot.online *(available on request)*
 
 ---
