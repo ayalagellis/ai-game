@@ -12,7 +12,6 @@
       "dest": "api/index.ts"
     }
   ],
-  "buildCommand": "npm run build -w client",
+  "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/dist"
-
 }
