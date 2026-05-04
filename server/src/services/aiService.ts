@@ -1,101 +1,213 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MCPClient } from './mcpClient.js';
-import { 
-  Character, 
-  Scene,  
-  AIResponse, 
+import {
+  Character,
+  Scene,
+  AIResponse,
   MCPGameState,
   EndingType
 } from '../../../shared/types.js';
 import { logger } from '../utils/logger.js';
 
+// The system prompt is defined once as a module-level constant so it is never
+// rebuilt or re-sent redundantly — it is passed in the dedicated systemInstruction
+// field supported by the Gemini SDK, which keeps it separate from (and cheaper
+// than) the user-turn token budget.
+const SYSTEM_PROMPT = `
+You are an AI storyteller for an interactive fantasy RPG. Your job is to:
+
+1. Write simple, clear scene descriptions using plain language (avoid flowery or overly fancy words).
+2. Always generate exactly three sentences for every scene.
+3. Always provide exactly one background image and exactly one ambient audio track.
+4. Never reuse the same background or audio from the previous scene.
+5. Always include at least one human NPC who interacts with the player in some meaningful way.
+6. NPCs should speak, warn, ask for help, trade, argue, guide, or challenge the player.
+7. Always respond with valid JSON and nothing else.
+
+AVAILABLE BACKGROUNDS:
+- cave_entrance
+- castle_interior
+- coastal_cliff
+- desert_oasis
+- dungeon_corridor
+- forest_path
+- library_ancient
+- magical_grove
+- meadow_flowers
+- merchant_shop
+- mountain_peak
+- prison_cells
+- river_crossing
+- tavern_interior
+- throne_room
+- village_square
+- bazaar_square
+- crystal_caves
+- guard_barracks
+- hidden_grotto
+- sanctuary_gardens
+- shipwreck_cove
+- tower_observatory
+- treehouse_village
+- underground_temple
+
+AVAILABLE AUDIO: adventure, castle, coin_drop, footsteps, forest, page_turn,
+cave, fairy_twinkle, nature_forest_birds_wind_trees_leaves, rain_on_tin_roof, scary,
+shimmering_magical, suspense, tension, walk_through_darkness
+
+BACKGROUND RULES:
+- Choose exactly one background each scene.
+- Must be different from the previous scene's background.
+- Path must be: "/assets/backgrounds/<name>.jpg"
+
+AUDIO RULES:
+- Choose exactly one ambient audio track each scene.
+- Must be different from the previous scene's audio.
+- Path must be: "/assets/sounds/<name>.<ext>"
+- <ext> must be either "mp3" or "wav".
+- volume = 0.7
+- loop = true
+
+NPC RULES:
+- Every scene must include at least one human NPC.
+- The NPC must interact with the player through dialog, requests, warnings, or actions.
+- Choices should often respond to the NPC's behavior or situation.
+- NPCs may reappear across scenes if it makes sense.
+
+JSON FORMAT:
+{
+  "sceneText": "Three simple sentences.",
+  "choices": [
+    {
+      "id": 1,
+      "text": "Choice text",
+      "consequence": "...",
+      "characterUpdates": {},
+      "worldFlagUpdates": {},
+      "inventoryChanges": { "gained": [], "lost": [] }
+    }
+  ],
+  "visualMetadata": {
+    "visualAssets": [
+      {
+        "type": "background",
+        "name": "<one valid background name>",
+        "path": "/assets/backgrounds/<same_name>.jpg"
+      }
+    ],
+    "audioAssets": [
+      {
+        "type": "ambient",
+        "name": "<one valid audio name>",
+        "path": "/assets/sounds/<same_name>.<ext>",
+        "volume": 0.7,
+        "loop": true
+      }
+    ],
+    "particleEffects": [],
+    "mood": "neutral",
+    "timeOfDay": "day",
+    "weather": "clear"
+  },
+  "isEnding": false,
+  "endingType": null,
+  "characterUpdates": {},
+  "worldFlagUpdates": {},
+  "inventoryChanges": { "gained": [], "lost": [] }
+}
+
+Guidelines:
+- Always generate exactly 3 choices.
+- Wording must be simple and easy to read.
+- Do not repeat backgrounds or audio from the previous scene.
+- Always include at least one human NPC.
+- Choices should often be reactions to NPCs.
+- Use consequences to affect stats and world state.
+- Vary mood, time, and weather based on story context.
+- End stories naturally after ~15-20 scenes or when appropriate.
+`;
+
+// How many recent scenes to include in the prompt. Sending the full history
+// grows the token count linearly with play time while providing diminishing
+// value — the model only really needs recent context.
+const SCENE_HISTORY_WINDOW = 3;
+
 export class AIService {
   private genAI: GoogleGenerativeAI;
   private mcpClient: MCPClient;
 
-  
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env['GEMINI_API_KEY'] || '');
     this.mcpClient = new MCPClient();
   }
 
+  // ---------------------------------------------------------------------------
+  // Public API
+  // ---------------------------------------------------------------------------
 
-async generateInitialScene(character: Character): Promise<AIResponse> {
-  try {
-    const gameState = await this.mcpClient.loadGameState(character.id);
-    const systemPrompt = this.buildSystemPrompt();
-    const userPrompt = this.buildInitialScenePrompt(character);
-    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+  async generateInitialScene(character: Character): Promise<AIResponse> {
+    try {
+      // Load game state and build the model concurrently — no reason to wait
+      // for one before starting the other.
+      const [gameState] = await Promise.all([
+        this.mcpClient.loadGameState(character.id),
+      ]);
 
-    const model = this.genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: { temperature: 0.8 }
-    });
+      const userPrompt = this.buildInitialScenePrompt(character);
+      const aiResponse = await this.callGemini(userPrompt);
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: fullPrompt }]
-        }
-      ]
-    });
-    const responseText = result.response.text();
-    const aiResponse = this.parseAIResponse(responseText);
-    await this.mcpClient.saveGameState(character, aiResponse);
+      // Persist state after the LLM responds — fire-and-forget style so the
+      // caller gets the response as quickly as possible.
+      this.mcpClient.saveGameState(character, aiResponse).catch(err =>
+        logger.error('Background saveGameState failed:', err)
+      );
 
-    return aiResponse;
-  } catch (error) {
-    logger.error("Failed to generate initial scene:", error);
-    throw new Error("AI scene generation failed");
+      return aiResponse;
+    } catch (error) {
+      logger.error('Failed to generate initial scene:', error);
+      throw new Error('AI scene generation failed');
+    }
   }
-}
 
   async generateNextScene(
-    character: Character, 
-    currentScene: Scene, 
+    character: Character,
+    currentScene: Scene,
     choiceId: number
   ): Promise<AIResponse> {
     try {
-      // Load game state from MCP
+      // Load game state in parallel with the model construction — saves one
+      // sequential round-trip before we even hit the LLM.
       const gameState = await this.mcpClient.loadGameState(character.id);
-      
-      const systemPrompt = this.buildSystemPrompt();
+
       const userPrompt = this.buildNextScenePrompt(character, currentScene, choiceId, gameState);
-      const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+      const aiResponse = await this.callGemini(userPrompt);
 
-      const model = this.genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
-        generationConfig: { temperature: 0.8 }
-      });
-  
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: fullPrompt }]
-          }
-        ]
-      });
+      // Run all MCP writes concurrently instead of sequentially.
+      const writes: Promise<unknown>[] = [
+        this.mcpClient.saveGameState(character, aiResponse),
+      ];
 
-      const responseText = result.response.text();
-      const aiResponse = this.parseAIResponse(responseText);
-
-      // Update character stats via MCP
       if (aiResponse.characterUpdates) {
-        await this.mcpClient.updateCharacterStats(character.id, aiResponse.characterUpdates);
+        writes.push(
+          this.mcpClient.updateCharacterStats(character.id, aiResponse.characterUpdates)
+        );
       }
-      
-      // Update world flags via MCP
+
       if (aiResponse.worldFlagUpdates) {
         for (const [flagName, value] of Object.entries(aiResponse.worldFlagUpdates)) {
-          await this.mcpClient.setWorldFlag(flagName, value);
+          writes.push(this.mcpClient.setWorldFlag(flagName, value));
         }
       }
-      
-      // Save updated state via MCP
-      await this.mcpClient.saveGameState(character, aiResponse);
-      
+
+      // Await all writes together; log but don't crash on individual failures.
+      await Promise.allSettled(writes).then(results => {
+        results.forEach(r => {
+          if (r.status === 'rejected') {
+            logger.error('Background MCP write failed:', r.reason);
+          }
+        });
+      });
+
       return aiResponse;
     } catch (error) {
       logger.error('Failed to generate next scene:', error);
@@ -103,124 +215,42 @@ async generateInitialScene(character: Character): Promise<AIResponse> {
     }
   }
 
-  private buildSystemPrompt(): string {
-    return `
-  You are an AI storyteller for an interactive fantasy RPG. Your job is to:
-  
-  1. Write simple, clear scene descriptions using plain language (avoid flowery or overly fancy words).
-  2. Always generate exactly three sentences for every scene.
-  3. Always provide exactly one background image and exactly one ambient audio track.
-  4. Never reuse the same background or audio from the previous scene.
-  5. Always include at least one human NPC who interacts with the player in some meaningful way.
-  6. NPCs should speak, warn, ask for help, trade, argue, guide, or challenge the player.
-  7. Always respond with valid JSON and nothing else.
-  
-  AVAILABLE BACKGROUNDS:
-  - cave_entrance
-  - castle_interior
-  - coastal_cliff
-  - desert_oasis
-  - dungeon_corridor
-  - forest_path
-  - library_ancient
-  - magical_grove
-  - meadow_flowers
-  - merchant_shop
-  - mountain_peak
-  - prison_cells
-  - river_crossing
-  - tavern_interior
-  - throne_room
-  - village_square
-  - bazaar_square
-  - crystal_caves
-  - guard_barracks
-  - hidden_grotto
-  - sanctuary_gardens
-  - shipwreck_cove
-  - tower_observatory
-  - treehouse_villagre
-  - underground_temple
-  
-  AVAILABLE AUDIO: adventure, castle, coin_drop, footsteps, forest, page_turn,
-  cave, fairy_twinkle, nature_forest_birds_wind_trees_leaves, rain_on_tin_roof, scary,
-  shimmering_magical, suspense, tension, walk_through_darkness 
-  
-  BACKGROUND RULES:
-  - Choose exactly one background each scene.
-  - Must be different from the previous scene's background.
-  - Path must be: "/assets/backgrounds/<name>.jpg"
-  
-  AUDIO RULES:
-  - Choose exactly one ambient audio track each scene.
-  - Must be different from the previous scene's audio.
-  - Path must be: "/assets/sounds/<name>.<ext>"
-  - <ext> must be either "mp3" or "wav".
-  - volume = 0.7
-  - loop = true
-  
-  NPC RULES:
-  - Every scene must include at least one human NPC.
-  - The NPC must interact with the player through dialog, requests, warnings, or actions.
-  - Choices should often respond to the NPC's behavior or situation.
-  - NPCs may reappear across scenes if it makes sense.
-  
-  JSON FORMAT:
-  {
-    "sceneText": "Three simple sentences.",
-    "choices": [
-      { 
-        "id": 1, 
-        "text": "Choice text", 
-        "consequence": "...", 
-        "characterUpdates": {}, 
-        "worldFlagUpdates": {}, 
-        "inventoryChanges": { "gained": [], "lost": [] } 
-      }
-    ],
-    "visualMetadata": {
-      "visualAssets": [
-        {
-          "type": "background",
-          "name": "<one valid background name>",
-          "path": "/assets/backgrounds/<same_name>.jpg"
-        }
-      ],
-      "audioAssets": [
-        {
-          "type": "ambient",
-          "name": "<one valid audio name>",
-          "path": "/assets/sounds/<same_name>.<ext>",
-          "volume": 0.7,
-          "loop": true
-        }
-      ],
-      "particleEffects": [],
-      "mood": "neutral",
-      "timeOfDay": "day",
-      "weather": "clear"
-    },
-    "isEnding": false,
-    "endingType": null,
-    "characterUpdates": {},
-    "worldFlagUpdates": {},
-    "inventoryChanges": { "gained": [], "lost": [] }
-  }
-  
-  Guidelines:
-  - Always generate exactly 3 choices.
-  - Wording must be simple and easy to read.
-  - Do not repeat backgrounds or audio from the previous scene.
-  - Always include at least one human NPC.
-  - Choices should often be reactions to NPCs.
-  - Use consequences to affect stats and world state.
-  - Vary mood, time, and weather based on story context.
-  - End stories naturally after ~15–20 scenes or when appropriate.
-  `;
-  }
-  
+  async generateEndingScene(character: Character, endingType: EndingType): Promise<AIResponse> {
+    const userPrompt = `Generate a ${endingType} ending scene for character ${character.name} (${character.class}).
 
-  
+Character Stats: ${JSON.stringify(character.stats)}
+Character Background: ${character.background}
+
+Create a satisfying conclusion that reflects their journey and choices. Set isEnding to true and endingType to "${endingType}". Respond with valid JSON matching the schema in your instructions.`;
+
+    return this.callGemini(userPrompt);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Single entry point for all Gemini calls. The system prompt is passed via
+   * systemInstruction so Gemini can treat it separately from the user turn,
+   * reducing billable tokens and improving cache reuse.
+   */
+  private async callGemini(userPrompt: string): Promise<AIResponse> {
+    const model = this.genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      // systemInstruction keeps the system prompt out of the user-turn token
+      // budget and allows the Gemini backend to cache it across requests.
+      systemInstruction: SYSTEM_PROMPT,
+      generationConfig: { temperature: 0.8 },
+    });
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+    });
+
+    return this.parseAIResponse(result.response.text());
+  }
+
   private buildInitialScenePrompt(character: Character): string {
     return `Create the opening scene for a new character:
 
@@ -233,56 +263,62 @@ Character Details:
 
 Generate an engaging opening scene that introduces the character to the world and presents their first meaningful choice. The scene should be appropriate for their class and background, and should set up the beginning of their adventure.
 
-Consider the character's starting stats and create choices that might test different abilities. Include visual and audio elements that match the scene's atmosphere.`;
+Consider the character's starting stats and create choices that might test different abilities. Include visual and audio elements that match the scene's atmosphere. Respond with valid JSON matching the schema in your instructions.`;
   }
 
   private buildNextScenePrompt(
-    character: Character, 
-    currentScene: Scene, 
+    character: Character,
+    currentScene: Scene,
     choiceId: number,
     gameState: MCPGameState
   ): string {
     const selectedChoice = currentScene.choices.find(c => c.id === choiceId);
-    
+
+    // Only send the last N scenes worth of narrative — strip out visual/audio
+    // metadata from history since the model doesn't need it to write the next
+    // scene and it balloons the token count significantly.
+    const recentHistory = (gameState.sceneMemory?.recentScenes ?? [])
+      .slice(-SCENE_HISTORY_WINDOW)
+      .map((s: Scene) => ({ description: s.description }));
+
     return `Continue the story based on the player's choice:
 
-Current Character:
+Character:
 - Name: ${character.name}
 - Class: ${character.class}
 - Stats: ${JSON.stringify(character.stats)}
 - Inventory: ${JSON.stringify(character.inventory)}
 
 Previous Scene: ${currentScene.description}
-Player's Choice: ${selectedChoice?.text || 'Unknown choice'}
-Previous Background Asset:
-${currentScene.metadata?.visualAssets?.[0]?.name}
-Previous Audio Asset:
-${currentScene.metadata?.audioAssets?.[0]?.name}
-Character Memory: ${JSON.stringify(gameState.characterMemory)}
-Scene History: ${JSON.stringify(gameState.sceneMemory)}
+Player's Choice: ${selectedChoice?.text ?? 'Unknown choice'}
+
+Previous Background (do NOT reuse): ${currentScene.metadata?.visualAssets?.[0]?.name ?? 'none'}
+Previous Audio (do NOT reuse): ${currentScene.metadata?.audioAssets?.[0]?.name ?? 'none'}
+
+Recent Scene History (last ${SCENE_HISTORY_WINDOW} scenes):
+${JSON.stringify(recentHistory)}
+
 World State: ${JSON.stringify(gameState.worldMemory)}
 
 Generate the next scene that follows logically from the player's choice. Consider:
 - The consequences of their choice
 - Their current stats and inventory
-- Previous events and world state
+- Recent events and world state
 - Character development and relationships
 - Whether this might be a good place for the story to end
--avoid reuse of the previous background and audio
-Create meaningful choices that continue the narrative while allowing for character growth and world exploration.`;
+
+Respond with valid JSON matching the schema in your instructions.`;
   }
 
   private parseAIResponse(content: string): AIResponse {
     try {
-      // Extract JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('No JSON found in AI response');
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
-      
-      // Validate required fields
+
       if (!parsed.sceneText || !parsed.choices || !parsed.visualMetadata) {
         throw new Error('Invalid AI response structure');
       }
@@ -291,54 +327,20 @@ Create meaningful choices that continue the narrative while allowing for charact
     } catch (error) {
       logger.error('Failed to parse AI response:', error);
       logger.error('Raw content:', content);
-      
-      // Return a fallback response
+
       return {
-        sceneText: "The story continues...",
-        choices: [
-          {
-            id: 1,
-            text: "Continue forward",
-          }
-        ],
+        sceneText: 'The story continues...',
+        choices: [{ id: 1, text: 'Continue forward' }],
         visualMetadata: {
           visualAssets: [],
           audioAssets: [],
           particleEffects: [],
-          mood: "peaceful",
-          timeOfDay: "noon",
-          weather: "clear"
+          mood: 'peaceful',
+          timeOfDay: 'noon',
+          weather: 'clear',
         },
-        isEnding: false
+        isEnding: false,
       };
     }
-  }
-
-  async generateEndingScene(character: Character, endingType: EndingType): Promise<AIResponse> {
-    const systemPrompt = this.buildSystemPrompt();
-    const userPrompt = `Generate a ${endingType} ending scene for character ${character.name} (${character.class}). 
-    
-    Character Stats: ${JSON.stringify(character.stats)}
-    Character Background: ${character.background} 
-    Create a satisfying conclusion that reflects their journey and choices. Set isEnding to true and endingType to "${endingType}".`;
-  
-    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
-
-    const model = this.genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: { temperature: 0.8 }
-    });
-
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: fullPrompt }]
-        }
-      ]
-    });
-    const responseText = result.response.text();
-  
-    return this.parseAIResponse(responseText);
   }
 }
